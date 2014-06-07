@@ -150,6 +150,7 @@ var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
 var DOWNLOADACCOUNTACTIVITY = GM_getValue("DOWNLOADACCOUNTACTIVITY", TESTING);
 GM_log("DOWNLOADACCOUNTACTIVITY=", DOWNLOADACCOUNTACTIVITY);
 
+GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
 var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
 GM_log("LOADSUMMARYATSTARTUP=", LOADSUMMARYATSTARTUP);
 
