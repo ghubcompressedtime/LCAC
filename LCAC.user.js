@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name           LendingClubAddCommentField
+// @name           LCAC
 // @namespace      compressedtime.com
 // @version        3.192
 // @run-at         document-end
@@ -85,6 +85,8 @@ loan performance, bring payment plan to main page
 compress stroed data for ffn export
 
  */
+
+console.log("LCAC @version " + GM_info.script.version);
 
 GM_setValue("DEBUG", true);
 GM_setValue("TESTING", true);
