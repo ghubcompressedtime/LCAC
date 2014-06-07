@@ -88,8 +88,8 @@ compress stroed data for ffn export
 
 console.log("LCAC @version " + GM_info.script.version);
 
-GM_setValue("DEBUG", true);
-GM_setValue("TESTING", true);
+//GM_setValue("DEBUG", true);
+//GM_setValue("TESTING", true);
 //GM_setValue("LOADSUMMARYATSTARTUP", false);
 
 var DEBUG = GM_getValue("DEBUG", false);
@@ -150,7 +150,7 @@ var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
 var DOWNLOADACCOUNTACTIVITY = GM_getValue("DOWNLOADACCOUNTACTIVITY", TESTING);
 GM_log("DOWNLOADACCOUNTACTIVITY=", DOWNLOADACCOUNTACTIVITY);
 
-var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", true);
+var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
 GM_log("LOADSUMMARYATSTARTUP=", LOADSUMMARYATSTARTUP);
 
 if(TESTING)
@@ -7339,14 +7339,20 @@ var DEBUG = debug(true, arguments);
 				{
 					summaryValuesRefreshButtonClick();
 				});
-			LOADSUMMARYATSTARTUP && summaryValuesRefreshButtonClick();	// run it once at startup with current page
+			if(LOADSUMMARYATSTARTUP)
+				summaryValuesRefreshButtonClick();	// run it once at startup with current page
+			else
+				console.log("LOADSUMMARYATSTARTUP=" + LOADSUMMARYATSTARTUP);
 
 			summaryNotesRefreshButton
 				.on("click", function()
 				{
 					summaryNotesRefreshButtonClick();
 				});
-			LOADSUMMARYATSTARTUP && summaryNotesRefreshButtonClick();
+			if(LOADSUMMARYATSTARTUP)
+				summaryNotesRefreshButtonClick();
+			else
+				console.log("LOADSUMMARYATSTARTUP=" + LOADSUMMARYATSTARTUP);
 
 			summarydiv.find("input#importLocalStorageButton")
 				.after(
