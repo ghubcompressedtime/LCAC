@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.192
+// @version        3.193
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -7277,7 +7277,7 @@ var DEBUG = debug(true, arguments);
 							, notesTotal
 							, loansTotal
 							, principalRemainingTotal
-							, interestRateAvg * 100, interestRateAvgWeighted * 100
+							, interestRateAvg, interestRateAvgWeighted
 							, ageInMonthsAvg, ageInMonthsAvgWeighted
 							));
 
