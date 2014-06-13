@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.193
+// @version        3.194
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -3199,19 +3199,23 @@ var DEBUG = debug(false, arguments);
 		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|payment failed|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan)", "gi");
 	}
 
-	var allelements = $("div#content-wrap *, div#master_content *")	// foliofn and LC are different
-		.not("div#lcLoanPerf1, div#lcLoanPerf1 *")	// don't modify the Payment History, it sticks around in Chrome
-		.not("div.log-content, div.log-content *")	// new Collection Log note
-	;
+	var allelements = $("div#content-wrap *:not(:has(*)), div#master_content *:not(:has(*))");	// foliofn and LC are different
+
+	allelements = allelements.filter(
+    	function() {return $(this).parents('#lcLoanPerf1, .log-content, .collectionlog-header').length < 1;}
+	);
+
+	GM_log("allelements=", allelements);
+
 
 	/*
 	 * add some warnings to the top
 	 */
 	var warning = "", warning2 = "", warning3 = "";
 	
-	var htmlarr = [];
-	allelements.each(function(){ htmlarr.push($(this).html())});	// html() is only for first element of set so loop
-	var html = htmlarr.join(" ");
+	var allelementshtml = [];
+	allelements.each(function(){ allelementshtml.push($(this).html())});	// html() is only for first element of set so loop
+	var html = allelementshtml.join(" ");
 
 	html = html.replace(/(\s+)/gm, ' ');	// make one big line for multiline Recoveries match XXX should probably do this a little better
 
