@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.194
+// @version        3.195
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -5377,8 +5377,7 @@ var DEBUG = debug(true, arguments);
 	else
 		$(".leavingForFolioFnWarning").click(function()
 		{
-			var div = $("#leavingForFolioFnWarningDlg_c");
-			div.find(".button-group")
+			$("#leavingLcWarningPopup .button-group")
 				.prepend("<label><input type='checkbox' class='neveraskagain' />Never ask again*</label>")
 				.find("button.default")	// the Yes button
 					.click(function()
@@ -7901,7 +7900,14 @@ var DEBUG = debug(true, arguments);
 		waitForElement(".yui-pg-rpp-options", null,
 			function(selects)
 			{
-//				addSelectValues(selects, ["200", "500", "2000"]);
+				if(false)	// they disabled our ability to ask for different amounts?
+				{
+				selects.append(""
+					+ "<option value='500'>500*</option>"
+					+ "<option value='1000'>1000*</option>"
+					+ "<option value='2000'>2000*</option>"
+				);
+				}
 
 				waitForElement("#browseNotes table", ".yui-dt-data",
 					function(notesTable)
