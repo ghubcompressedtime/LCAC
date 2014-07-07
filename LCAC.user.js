@@ -6594,13 +6594,16 @@ var DEBUG = debug(true, arguments);
 		{
 			var note = csvArray[index];
 
+			if(index < 10)
+				GM_log(FUNCNAME + " note['Investment']=", note['Investment']);
+
 			var note2 = {
 				noteId: note['NoteId'],
 				loanId: note['LoanId'],
 				orderId: note['OrderId'],
 				accrual: parseFloat(note['Accrual']),
 				paymentReceived: parseFloat(note['PaymentsReceivedToDate']),
-				amountLent: parseFloat(note['AmountLent']),
+				amountLent: parseFloat(note['Investment'] != null ? note['Investment'] : note['AmountLent']),
 				status: note['Status'],
 				orderDate: note['OrderDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
 				issueDate: note['Issue Date'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
