@@ -154,6 +154,8 @@ GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
 var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
 GM_log("LOADSUMMARYATSTARTUP=", LOADSUMMARYATSTARTUP);
 
+var notesRawDataURL = '/account/notesRawDataExtended.action';
+
 if(TESTING)
 	unsafeWindow.jQ = jQuery;	// so we can debug in firebug
 
@@ -1725,7 +1727,7 @@ var DEBUG = debug(true, arguments);
 			var div = $("div.data-container:last");
 			GM_log("div=", div);
 			div.after("<div class='pplink'><h3>Payment Plan</h3><div><div class='ppplaceholder'>Loading...</div></div></div>");
-			$.get(href, function(responseText)
+			$.get(href, function doLoanPerfPart2_1_get(responseText)
 			{
 				var dom = $(responseText);
 
@@ -1740,6 +1742,13 @@ var DEBUG = debug(true, arguments);
 				$("div.ppplaceholder").replaceWith(pptable);
 
 				dom.remove();	//XXX discard the rest (does this help free up memory?)
+			})
+			.fail(function doLoanPerfPart2_1_get_fail(jqXHR, textStatus, errorThrown)
+			{
+			var FUNCNAME = funcname(arguments);
+
+				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 			});
 		}
 	}
@@ -1787,15 +1796,15 @@ var DEBUG = debug(true, arguments);
 	$("table.lcac_ReceivedPayments tbody")
 		.append(note.orderDate < note.issueDate ? '' : (''
 			+ sprintf("<tr title='%s'><th>Order Date*</th><td>%s</td></tr>",
-				"This value comes from /account/notesRawData.action",
+				"This value comes from " + notesRawDataURL,
 				note.orderDate)
 			))
 		.append(''
 			+ sprintf("<tr title='%s'><th>Investment*</th><td>$%0.2f</td></tr>",
-				"This value comes from /account/notesRawData.action",
+				"This value comes from " + notesRawDataURL,
 				note.amountLent)
 			+ sprintf("<tr class='sub-total' title='%s'><th>Payments Received*</th><td>$%0.2f</td></tr>",
-				"This value comes from /account/notesRawData.action",
+				"This value comes from " + notesRawDataURL,
 				note.paymentReceived)
 			);
 }
@@ -6665,10 +6674,7 @@ var DEBUG = debug(true, arguments);
 		 * (we had a problem once selling notes when using the no-referer add-on)
 		 * YYY setting the referer is prohibited in javascript
 		 */
-		var requestURL = "/account/notesRawData.action";	// link at bottom of https://www.lendingclub.com/account/loans.action
-		GM_log("requestURL=", requestURL);
-		
-		$.get(requestURL, function(responseText)
+		$.get(notesRawDataURL, function(responseText)
 		{
 			GM_log(FUNCNAME + " responseText.length=" + responseText.length);
 
@@ -6712,7 +6718,7 @@ var DEBUG = debug(true, arguments);
 		var setupURL = '/foliofn/tradingInventory.action?mode=search&search_from_rate=0.04&search_to_rate=0.27&loan_status=loan_status_issued&loan_status=loan_status_current&loan_status=loan_status_ingrace&loan_status=loan_status_late_16_30&loan_status=loan_status_late_31_120&fil_search_term=term_36&fil_search_term=term_60&search_loan_term=term_36&search_loan_term=term_60&remp_min=1&remp_max=60&askp_min=0.00&askp_max=Any&markup_dis_min=-100&markup_dis_max=15&opr_min=0.00&opr_max=Any&ona_min=25&ona_max=Any&ytm_min=0&ytm_max=Any&credit_score_min=600&credit_score_max=850&credit_score_trend=UP&credit_score_trend=DOWN&credit_score_trend=FLAT';
 //		var setupURL = 'https://www.lendingclub.com/foliofn/tradingInventory.action?mode=search&search_from_rate=0.04&search_to_rate=0.27&loan_status=loan_status_issued&loan_status=loan_status_current&loan_status=loan_status_ingrace&loan_status=loan_status_late_16_30&loan_status=loan_status_late_31_120&fil_search_term=term_36&fil_search_term=term_60&search_loan_term=term_36&search_loan_term=term_60&remp_min=13&remp_max=13&askp_min=0.00&askp_max=Any&markup_dis_min=-100&markup_dis_max=15&opr_min=0.00&opr_max=Any&ona_min=25&ona_max=Any&ytm_min=0&ytm_max=Any&credit_score_min=600&credit_score_max=850&credit_score_trend=UP&credit_score_trend=DOWN&credit_score_trend=FLAT';
 
-		var requestURL = "/foliofn/notesRawData.action";	// link at bottom of https://www.lendingclub.com/account/loans.action
+		var requestURL = "/foliofn/notesRawData.action";	// link at bottom of Foliofn Browse Notes "Download Search Results"
 		GM_log("requestURL=", requestURL);
 		
 		$.get(setupURL, function getFfnNotesRawData_get_setupURL_callback(responseText)
@@ -6832,7 +6838,7 @@ var DEBUG = debug(true, arguments);
 //		var requestURL = "/account/summary.action";
 		var requestURL = "/account/lenderAccountDetail.action";
 
-		$.get(requestURL, function(responseText, textStatus, jqXHR) 	// success
+		$.get(requestURL, function getAccountSummary_get(responseText, textStatus, jqXHR) 	// success
 		{
 			if(responseText.match(/Member Sign-In/))		// we've been logged out
 			{
@@ -6850,6 +6856,13 @@ var DEBUG = debug(true, arguments);
 			GM_log(FUNCNAME + "_get() summary=", summary);
 
 			callback(summary);
+		})
+		.fail(function getAccountSummary_get_fail(jqXHR, textStatus, errorThrown)
+		{
+		var FUNCNAME = funcname(arguments);
+
+			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 
@@ -6859,7 +6872,7 @@ var DEBUG = debug(true, arguments);
 
 		var requestURL = "/foliofn/tradingAccount.action";	// html
 
-		$.get(requestURL, function(responseText) 	// success
+		$.get(requestURL, function getFoliofn_get(responseText) 	// success
 		{
 			GM_log(FUNCNAME + " responseText.length=" + responseText.length);
 			DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0, 1024) + "...");
@@ -6898,6 +6911,13 @@ var DEBUG = debug(true, arguments);
 				purchasedPendingTotal: purchasedPendingTotal,
 				soldPendingTotal: soldPendingTotal,
 			});
+		})
+		.fail(function getFoliofn_get_fail(jqXHR, textStatus, errorThrown)
+		{
+		var FUNCNAME = funcname(arguments);
+
+			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 
