@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.195
+// @version        3.196
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
 // @grant          GM_addStyle
 // @grant          GM_xmlhttpRequest
+
+// @downloadURL    https://github.com/ghubcompressedtime/LCAC/raw/master/LCAC.user.js
 
 // @require        http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
 // @require        http://raw.github.com/kvz/phpjs/master/functions/strings/sprintf.js
@@ -2898,6 +2900,8 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 function parseTrendData(trs)
 {
+var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
 	/* For example:
 <tr>
 	<td>750-779</td> <td>February 08, 2010</td>
@@ -2924,7 +2928,7 @@ function parseTrendData(trs)
 		
 		var date = tds.eq(1).text();
 		date = dateFormat(new Date(date), '-');
-		GM_log("date=", date);
+//		GM_log(FUNCNAME + "date=", date);
 
 		if(datePrev == null || date != datePrev)	// there can be duplicates in here
 			values.push({val: val, date: date});
@@ -7295,8 +7299,8 @@ var DEBUG = debug(true, arguments);
 						sprintf("%d notes"
 						+ ",%d loans"
 						+ ",$%0.2f o.p"
-						+ ",%0.2f%% avg rate/%0.2f%% weighted"
-						+ ",%0.0f avg age in months/%0.0f weighted"
+						+ ",avg rate:%0.2f%%/%0.2f%% weighted"
+						+ ",avg age in months:%0.0f/%0.0f weighted"
 							, notesTotal
 							, loansTotal
 							, principalRemainingTotal
