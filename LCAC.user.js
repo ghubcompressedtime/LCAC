@@ -21,7 +21,6 @@
 // @require        http://raw.github.com/ghubcompressedtime/js-deflate/patch-2/rawinflate.js
 // @require        https://raw.github.com/tomkp/dates.js/master/src/dates.js
 
-// @include        https://www.lendingclub.com/account/getLenderActivity.action*
 // @include        https://www.lendingclub.com/account/loanDetail.action?*
 // @include        https://www.lendingclub.com/browse/loanDetail.action?*
 // @include        https://www.lendingclub.com/browse/loanDetailFull.action?*
@@ -148,9 +147,6 @@ var NOFOLIOFNWARNING = GM_getValue("NOFOLIOFNWARNING", false);
 GM_log("NOFOLIOFNWARNING=", NOFOLIOFNWARNING);
 
 var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
-
-var DOWNLOADACCOUNTACTIVITY = GM_getValue("DOWNLOADACCOUNTACTIVITY", TESTING);
-GM_log("DOWNLOADACCOUNTACTIVITY=", DOWNLOADACCOUNTACTIVITY);
 
 GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
 var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
@@ -5288,51 +5284,6 @@ function table2stringarrarr(dom)
 	return arr;
 }
 
-/*
- * Activity older than 6 months is not available. 
- */
-function getLenderActivity(startDate, endDate, callback)
-{
-var DEBUG = debug(true, arguments);
-
-	var url = "/account/getLenderActivity.action";
-	var params =
-		sprintf("start_date_monthly_statements=%s&end_date_monthly_statements=%s&activity_detail_type=all&reg_captcha=&display="
-			, encodeURIComponent(startDate)
-			, encodeURIComponent(endDate)
-		);
-
-	GM_log("url=" + url);
-	GM_log("params=" + params);
-
-	$.post(url, params, function lcac_downloadactivity_click_post(responseText)
-	{
-	var DEBUG = debug(false, arguments);
-
-		if(responseText.match("Activity older than 6 months is not available"))
-		{
-			GM_log("lcac_downloadactivity_click_post() responseText=" + responseText);
-
-			callback(null);
-			return;
-		}
-		var tableHTML = responseText.replace(/^[/s/S]*(<table [/s/S]*<\/table[/s/S]*?>).*$/, '$1')
-
-		var dom = $(tableHTML);
-
-		var arr = table2stringarrarr(dom);
-
-		GM_log("arr=", arr);
-
-		callback(arr);
-	})
-	.fail(function lcac_downloadactivity_click_post_fail()
-	{
-	var DEBUG = debug(true, arguments);
-		
-		callback(null);
-	});
-}
 
 
 var scanDelay, scanDelayBackoff;
@@ -9989,155 +9940,6 @@ var DEBUG = debug(true, arguments);
 	}
 	else if(href.match(/lenderActivity.action/))	// LC Account Activity date entry form
 	{
-	}
-	else if(href.match(/getLenderActivity.action/))	// LC Account Activity
-	{
-		/*don't do anything until the captcha is entered*/
-		var div = $("div:contains('Please enter the code shown')");
-		if(div.length > 0 && !div.hasClass('hidden'))	// message exists but isn't hidden
-			return;
-
-		if(DOWNLOADACCOUNTACTIVITY)
-			$("#submitAccountDatesContainer").after("<input type='button' class='lcac_downloadactivity' value='Download to Database' />");
-
-		var lcac_downloadactivity = $(".lcac_downloadactivity");
-		lcac_downloadactivity.click(function lcac_downloadactivity_click(event)
-		{
-			if($.data(lcac_downloadactivity, 'running'))
-			{
-				GM_log("setting cancel flag");
-				lcac_downloadactivity.attr('value', 'Canceling...');
-				$.data(lcac_downloadactivity, 'cancel', true);
-				return;
-			}
-			
-			$.data(lcac_downloadactivity, 'running', true);
-
-			var DEBUG = debug(false, arguments);
-
-			var endDate = $("#end-date").val();	// start with the one on the page
-			GM_log("endDate=", endDate);
-			endDate = new Date(endDate);
-			GM_log("endDate=", endDate);
-				
-			endDate.setMonth(endDate.getMonth() + 1);	// month is 0-based
-
-			function done(canceled)
-			{
-				// reset the button
-				lcac_downloadactivity.attr('value', 'Download to Database');
-				$.removeData(lcac_downloadactivity, 'running');
-				$.removeData(lcac_downloadactivity, 'cancel');
-
-				//XXX do something?
-			}
-
-			(function loop()
-			{
-				if($.data(lcac_downloadactivity, 'cancel'))
-				{
-					done(true);
-					return;
-				}
-
-				/* the second the month to the first of the next month */
-				endDate.setDate(1);
-
-				var endDate2 = sprintf("%02d/%02d/%04d", endDate.getMonth() + 1, endDate.getDate(), endDate.getFullYear());
-				endDate.setMonth(endDate.getMonth() - 1);
-				endDate.setDate(2);
-				var startDate2 = sprintf("%02d/%02d/%04d", endDate.getMonth() + 1, endDate.getDate(), endDate.getFullYear());
-
-				lcac_downloadactivity.attr('value', sprintf('Downloading %s to %s...', startDate2, endDate2));
-				GM_log("startDate2=", startDate2, " endDate2=", endDate2);
-
-				getLenderActivity(startDate2, endDate2,
-					function getLenderActivity_callback(arr)
-					{
-					var DEBUG = debug(false, arguments);
-
-						if(arr == null)
-						{
-							GM_log("getLenderActivity_callback() arr=", arr);
-
-							done(false);
-							return;
-						}
-
-						GM_log("getLenderActivity_callback() arr.length=", arr.length);
-						var jsonString = JSON.stringify(arr);
-						GM_log("jsonString=" + jsonString.substr(0, 1024) + "...");
-						
-						/*XXX post it to local webserver for storage in database*/
-						GM_xmlhttpRequest({
-							method: "POST",
-							url: "http://localhost/LCAC/lenderActivityPost.php",
-							data: "data=" + jsonString,
-							headers: {
-								"Content-Type": "application/x-www-form-urlencoded"
-							},
-							onload: function getLenderActivity_callback_post_onload(response)
-							{
-								var DEBUG = debug(false, arguments);
-
-								//XXX do something
-							},
-							onerror: function getLenderActivity_callback_post_onerror(response)
-							{
-								var DEBUG = debug(false, arguments);
-
-								//XXX do something
-							},
-							onabort: function getLenderActivity_callback_post_onabort(response)
-							{
-								var DEBUG = debug(false, arguments);
-
-								//XXX do something
-							},
-						});
-						
-						loop();	// continue the loop
-					});
-			})();	// start the loop
-		});
-
-		/* NOTE: no footers on this table */
-
-		waitForElement("div#lender-activity-div.yui-dt table", null,	// class yui-dt gets added after YUI is done
-			function(table)	// one at the top and one at the bottom
-			{
-				tableCanChange(table, "tbody:last", function(tbody)
-				{
-				var DEBUG = debug(false, arguments);
-
-					var descCol = table.find("thead th:contains('Description')").index();
-					DEBUG && GM_log("descCol=", descCol);
-
-	/*
-	 * by the time we get it, it looks like e.g.
-	<div class="yui-dt-liner"><span title="Service Fee, Loan 1219602">Service Fee, Loan 1219602</span></div>
-	*/
-					tbody
-						.find("tr td:nth-child(" + (descCol + 1) + ")")
-						.filter(":not(:contains(Service Fee))")
-						.each(function()
-						{
-							var obj = $(this);
-							DEBUG && GM_log("obj=", obj);
-
-							var html = obj.html();
-							DEBUG && GM_log("html=", html);
-						
-							var loanId = html.match(/Loan (\d+)/)[1];
-
-							var links = getNoteLinks(loanId);
-							DEBUG && GM_log("links=", links);
-
-							if(links)
-								$(this).append(" " + links);
-						});
-				});
-			});
 	}
 	else if(href.match(/orderDetails.action/))	// scrape the Order Details
 	{
