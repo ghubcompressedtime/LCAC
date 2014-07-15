@@ -1777,15 +1777,20 @@ var DEBUG = debug(true, arguments);
 	GM_log("note=", note);
 
 	if(!note || !note.amountLent)
+	{
+		GM_log("returning, note=", note);
+		if(note)
+			GM_log("note.amountLent=" + note.amountLent);
 		return;
-
-	GM_log("note.amountLent=" + note.amountLent);
+	}
 
 	// XXX 265px comes .moduleSmall:height
 	GM_addStyle("div.lcac_receivedpayments { height:auto !important; min-height:265px; }");
 
 	/* add a table to put our stuff in, after any No Fee text that might be here */
-	$(":header:contains('Received Payments')").closest("div")
+	var lcac_ReceivedPayments = $(":header:contains('Received Payments')").closest("div")
+	GM_log("lcac_ReceivedPayments=", lcac_ReceivedPayments);
+	lcac_ReceivedPayments
 		.addClass('lcac_receivedpayments')
 		.append("<table class='lcac_ReceivedPayments'><tbody></tbody></table>");
 		
@@ -6554,7 +6559,7 @@ var DEBUG = debug(true, arguments);
 				orderId: note['OrderId'],
 				accrual: parseFloat(note['Accrual']),
 				paymentReceived: parseFloat(note['PaymentsReceivedToDate']),
-				amountLent: parseFloat(note['Investment'] != null ? note['Investment'] : note['AmountLent']),
+				amountLent: parseFloat(note['Invested'] != null ? note['Invested'] : note['Investment'] != null ? note['Investment'] : note['AmountLent']),
 				status: note['Status'],
 				orderDate: note['OrderDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
 				issueDate: note['Issue Date'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
