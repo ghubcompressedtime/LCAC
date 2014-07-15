@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.196
+// @version        3.197
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
