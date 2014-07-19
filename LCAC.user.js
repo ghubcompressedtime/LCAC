@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.197
+// @version        3.198
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -3528,14 +3528,30 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	var ficoTrend = parseTrendData(dom.find("table#trend-data tbody tr"));
 	DEBUG && GM_log("ficoTrend=", ficoTrend);
 
-	//YYY ficoTrend appear to always have at least 2 values in the trend
-	var fico = ficoTrend[ficoTrend.length - 1].val;
-	var ficoPrev = ficoTrend[ficoTrend.length - 2].val;
-	
-	var ficoDrop = (fico - 400) - (ficoPrev - 400);
-	var ficoDropPercent = ficoDrop / (ficoPrev - 400);
-	DEBUG && GM_log("ficoDrop=", ficoDrop, " ficoDropPercent=", ficoDropPercent);
-	ficoDrop = ficoDropPercent < -FICODROPPERCENT ? ficoDrop : null;
+	/*YYY ficoTrend appear to always have at least 2 values in the trend
+	 * 2014-07-19: or not. e.g. this one is empty: https://www.lendingclub.com/foliofn/browseNotesLoanPerf.action?showfoliofn=true&loan_id=8474597&order_id=30275929&note_id=33143749
+	 */
+
+	if(ficoTrend.length >= 1)
+		var fico = ficoTrend[ficoTrend.length - 1].val;
+	else
+		var fico = -1;
+
+	if(ficoTrend.length >= 2)
+	{
+		var ficoPrev = ficoTrend[ficoTrend.length - 2].val;
+		
+		var ficoDrop = (fico - 400) - (ficoPrev - 400);
+		var ficoDropPercent = ficoDrop / (ficoPrev - 400);
+		DEBUG && GM_log("ficoDrop=", ficoDrop, " ficoDropPercent=", ficoDropPercent);
+		ficoDrop = ficoDropPercent < -FICODROPPERCENT ? ficoDrop : null;
+	}
+	else
+	{
+		var ficoPrev = -1;
+		var ficoDrop = 0;
+		var ficoDropPercent = 0;
+	}
 	
 	$.extend(vars, {
 		noFee: noFee,
