@@ -1809,6 +1809,8 @@ var DEBUG = debug(true, arguments);
 			+ sprintf("<tr class='sub-total' title='%s'><th>Payments Received*</th><td>$%0.2f</td></tr>",
 				"This value comes from " + notesRawDataURL,
 				note.paymentReceived)
+			+ sprintf("<tr class='sub-total'><th>Profit/Loss*</th><td>%s</td></tr>",
+				negative2parens("$%0.2f", note.paymentReceived + vars.recoveries - note.amountLent))
 			);
 }
 
