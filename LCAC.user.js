@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.199
+// @version        3.200
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -4760,10 +4760,16 @@ var GAINLOSS = GM_getValue("GAINLOSS", true);
 var FICOWAYDOWN = GM_getValue("FICOWAYDOWN", 519);
 
 var TABLESORTER = GM_getValue("TABLESORTER", true);
+GM_log("TABLESORTER=", TABLESORTER);
 var TABLESORTER2 = GM_getValue("TABLESORTER2", true);
+GM_log("TABLESORTER2=", TABLESORTER2);
 var TABLESORTER2DELAYINIT = GM_getValue("TABLESORTER2DELAYINIT", true);
+GM_log("TABLESORTER2DELAYINIT=", TABLESORTER2DELAYINIT);
 var TABLESORTER3 = GM_getValue("TABLESORTER3", false);
+GM_log("TABLESORTER3=", TABLESORTER3);
 var DETACHTABLES = GM_getValue("DETACHTABLES", true);
+GM_log("DETACHTABLES=", DETACHTABLES);
+
 
 var headerLimits = {
 	askingPriceMax: getStoredValue("askingPriceMax", 1000.0),
@@ -5061,9 +5067,7 @@ function parseAccountDetail(innerHTML)
 {
 var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
-	innerHTML = innerHTML.replace(/[\r\n]/g, ' ');
-	innerHTML = innerHTML.replace(/<br>/g, ' ');
-	innerHTML = innerHTML.replace(/<br\/>/g, ' ');
+	innerHTML = innerHTML.replace(/[\r\n]|<br>|<br\/>/g, ' ');
 
 	try
 	{
@@ -5079,7 +5083,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		var availableCash = text2Value(innerHTML.match(/<h4>Available\s*?Cash<\/h4>.*?\$([\d,.]+)/)[1]);
 		DEBUG && GM_log("availableCash=" + availableCash);
 		
-		var inFundingNotes = text2Value(innerHTML.match(/<h4>In Funding\s*?Notes\s*?<\/h4>.*?\$([\d,.]+)/)[1]);
+		var inFundingNotes = text2Value(innerHTML.match(/<h4>Committed\s*?Cash<\/h4>.*?\$([\d,.]+)/)[1]);
 		DEBUG && GM_log("inFundingNotes=" + inFundingNotes);
 
 		var outstandingPrincipal = text2Value(innerHTML.match(/<h4>Outstanding\s*?Principal<\/h4>.*?\$([\d,.]+)/)[1]);
@@ -7621,7 +7625,7 @@ var DEBUG = debug(true, arguments);
 //				];
 				
 				var savedsearchesJSON = GM_getValue("LCAC_savedsearches");
-				DEBUG && GM_log("savedsearchesJSON=", savedsearchesJSON);
+				GM_log("savedsearchesJSON=", savedsearchesJSON);
 
 				var savedsearches = savedsearchesJSON ? $.parseJSON(savedsearchesJSON) : [];
 				DEBUG && GM_log("savedsearches=", savedsearches);
