@@ -83,7 +83,7 @@
 
 FICO graph, indicate data out of date
 loan performance, bring payment plan to main page
-compress stroed data for ffn export
+compress stored data for ffn export
 
  */
 
