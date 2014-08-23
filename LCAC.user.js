@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.200
+// @version        3.201
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -3075,7 +3075,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	var accrued_interest = parseFloat2($("th:contains('Accrued Interest') + td").text());
 
-	var loanFraction = parseFloat2($("th:contains('Loan Fraction') + td").text());
+	var loanFraction = parseFloat2($("th:contains('Note Amount') + td").text());
 	var lateFees = parseFloat2($("th:contains('Late Fees Received') + td").text());
 
 	var interestRateGradeCell = $("th:contains('Rate') + td");
@@ -3137,6 +3137,9 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	var origPaymentAmount =
 		floor2Decimals(
 			PMT(interestRate / 12, termInMonths, loanFraction) * -1);	// the value is negative
+
+	GM_log("interestRate=" + interestRate + " termInMonths=" + termInMonths + " loanFraction=" + loanFraction);
+	GM_log("origPaymentAmount=" + origPaymentAmount);
 
 	var vars = {
 		loanId: loanId,
