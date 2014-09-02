@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.201
+// @version        3.202
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -89,6 +89,8 @@ compress stored data for ffn export
 
 console.log("LCAC @version " + GM_info.script.version);
 
+unsafeWindow.jQ = jQuery;
+
 //GM_setValue("DEBUG", true);
 //GM_setValue("TESTING", true);
 //GM_setValue("LOADSUMMARYATSTARTUP", false);
@@ -157,10 +159,6 @@ var notesRawDataURL = '/account/notesRawDataExtended.action';
 if(TESTING)
 	unsafeWindow.jQ = jQuery;	// so we can debug in firebug
 
-//GM_log("typeof processMarkupYtm=", typeof processMarkupYtm);	//chrome
-//GM_log("typeof window.processMarkupYtm=", typeof window.processMarkupYtm);	//neither
-//GM_log("typeof unsafeWindow.processMarkupYtm=", typeof unsafeWindow.processMarkupYtm);	//chrome and firefox
-
 var printStackTrace;
 if(DEBUG && unsafeWindow.console) {
 	printStackTrace = function(message)
@@ -226,22 +224,21 @@ function debug(DEBUG2, arguments2, printArgs)
  */
 function timestamp(funcnameOrArguments, messageOrReset)
 {
-	var funcname;
-	if(typeof funcnameOrArguments == 'string')
-		funcname = funcnameOrArguments;
-	else
-		funcname = funcname(funcnameOrArguments);
+	if(typeof funcnameOrArguments == 'object')
+		funcnameOrArguments = funcname(funcnameOrArguments);
 
 	var now = new Date().getTime();
 
-	if(!timestamp.funcname2timestamp[funcname] || messageOrReset === true || messageOrReset === 'begin')
-		timestamp.funcname2timestamp[funcname] = now;
+	if(!timestamp.funcname2timestamp[funcnameOrArguments] || messageOrReset === true || messageOrReset === 'begin')
+		timestamp.funcname2timestamp[funcnameOrArguments] = now;
 
-	var elapsed = now - timestamp.funcname2timestamp[funcname];
-	var elapsedprev = timestamp.funcname2timestampprev[funcname] != null ? now - timestamp.funcname2timestampprev[funcname] : null;
-	GM_log("TIMESTAMP: " + funcname + " " + messageOrReset + " elapsed=" + elapsed + "ms" + (elapsedprev ? " elapsedprev=" + elapsedprev : ''));
+	var elapsed = now - timestamp.funcname2timestamp[funcnameOrArguments];
+
+	var elapsedprev = timestamp.funcname2timestampprev[funcnameOrArguments] != null ? now - timestamp.funcname2timestampprev[funcnameOrArguments] : null;
+
+	GM_log("TIMESTAMP: " + funcnameOrArguments + " " + messageOrReset + " elapsed=" + elapsed + "ms" + (elapsedprev ? " elapsedprev=" + elapsedprev : ''));
 	
-	timestamp.funcname2timestampprev[funcname] = now;
+	timestamp.funcname2timestampprev[funcnameOrArguments] = now;
 }
 timestamp.funcname2timestamp = {};
 timestamp.funcname2timestampprev = {};
@@ -2468,7 +2465,7 @@ status "Fully Paid"
 */
 			$.each(storedData.notesByNoteId, function(index, note)
 			{
-				delete note.accrual;
+//				delete note.accrual;
 				delete note.nextPaymentDate;
 				delete note.principalRemaining;
 				delete note.status;
@@ -3333,7 +3330,7 @@ getLoanId.DEBUGCOUNT = -1;
 /* extract the loanId */
 function getLoanId(tr, loanIdColumnIndex, loanIdEmbeddedColumnIndex)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 DEBUG && getLoanId.DEBUGCOUNT++;
 
 	try
@@ -3396,11 +3393,13 @@ DEBUG && getLoanId.DEBUGCOUNT++;
 
 function getNoteId(tr, noteIdColumnIndex, noteIdEmbeddedColumnIndex)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 
 	try
 	{
 		var tds = tr.find("td");
+		DEBUG && GM_log("tds=", tds);
+		DEBUG && GM_log("noteIdEmbeddedColumnIndex=", noteIdEmbeddedColumnIndex);
 
 		var noteId = null;
 		if(noteIdEmbeddedColumnIndex != null)
@@ -3408,8 +3407,11 @@ var DEBUG = debug(false, arguments);
 			var td = tds.eq(noteIdEmbeddedColumnIndex);
 
 			var html = td.html();
+			DEBUG && GM_log("html=", html);
 
 			var noteId = html.match(/note_id=(\d+)/);	// extract the noteId from the anchor URL
+			
+			DEBUG && GM_log("2 noteId=", noteId);
 
 			if(noteId)
 				noteId = noteId[1];
@@ -3418,6 +3420,9 @@ var DEBUG = debug(false, arguments);
 				noteId = null
 
 		}
+			
+		DEBUG && GM_log("3 noteId=", noteId);
+		DEBUG && GM_log("noteIdColumnIndex=", noteIdColumnIndex);
 
 		if(noteId == null && noteIdColumnIndex != null)
 		{
@@ -3425,17 +3430,30 @@ var DEBUG = debug(false, arguments);
 
 			var text = td.text();
 
-			var noteId = text.match(/(\d+)/)[1];			// extract the noteId from the HTML text
+			var noteId = text.match(/(\d+)/);			// extract the noteId from the HTML text
+			
+			DEBUG && GM_log("4 noteId=", noteId);
+
+			if(noteId)
+				noteId = noteId[1];
+			
+			DEBUG && GM_log("5 noteId=", noteId);
 
 			if(noteId == "")
 				noteId = null;
 		}
 
 		if(noteId == null)
-			throw "getNoteId() noteId=" + noteId;
+		{
+			GM_log("returning noteId=" + noteId);
+			return null;
+		}
 
 		if(!noteId.match(/^\d+$/))
-			throw "getNoteId() noteId=" + noteId;
+		{
+			GM_log("/^\\d+$/ no match, returning null, noteId=" + noteId);
+			return null;
+		}
 
 		return noteId;
 	}
@@ -3991,7 +4009,7 @@ function allowMiddleClickToWorkAgain(notesTable)
 
 function findHeadersCheckCells(notesTable, colorCellsFunc, tableCanChange, flags)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 DEBUG && timestamp(arguments, true);
 
 	findHeaders0(notesTable,
@@ -4035,7 +4053,7 @@ var DEBUG = debug(false, arguments);
 
 function findHeaders00(notesTable0)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 
 	// null these out in case they were set before
 	var columnIndexes = {};
@@ -4071,9 +4089,17 @@ var DEBUG = debug(false, arguments);
 	(DEBUG &&ths == null) && GM_log("ths=", ths);
 
 	/* Find all the headers and remember them for later XXX yes, is ugly global variables */
-	for(var index = 0; index < ths.length; index++)
+	for(var index0 = index = 0; index0 < ths.length; index0++, index++)
 	{
-		var th = ths[index];
+		var th = ths[index0];
+
+		if($(th).hasClass('hidden'))	//2014-08 they've added a hidden 0th column to the sell pricing page?
+		{
+			DEBUG && GM_log("hidden column, skipping")
+			index--;
+			continue;
+		}
+
 
 //		var innerHTML = th.innerHTML;
 		var innerHTML = $("<div>").append(th.cloneNode(true)).html();	// outerHTML per http://stackoverflow.com/questions/1700870/how-do-i-do-outerhtml-in-firefox // true per https://developer.mozilla.org/en-US/docs/DOM/Node.cloneNode (worked in firefox, not in chrome)
@@ -4220,14 +4246,16 @@ function checkCells0(notesTable, colorCellsFunc, tableCanChange,
 	addDeleteRowButton,
 	addNoteIdColumn)
 {
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	attachLocalStorageCommentListener();
 
 	var tbody = notesTable.find("tbody:last");
 	var tbody0 = tbody.get(0);
+	GM_log("tbody0=", tbody0);
 
 	var trFirst = tbody.find("tr:first");
+	GM_log("trFirst=", trFirst);
 
 	/*
 	 * set a flag on the first row
@@ -4262,6 +4290,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	}
 
 	/* loop (if table can change) */
+	GM_log("tableCanChange=", tableCanChange);
 	if(tableCanChange)
 	{
 		setTimeout(
@@ -4283,7 +4312,7 @@ function addCells(notesTable,
 	addDeleteRowButton,
 	addNoteIdColumn)
 {
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 DEBUG && timestamp(arguments, true);
 
 	var notesTable0 = notesTable.get(0);
@@ -4321,7 +4350,7 @@ DEBUG && timestamp(arguments, true);
 	//OPTIMIZEME 4 seconds
 	trs.each(function(index, tr0)
 	{
-	var DEBUG = debug(false && index < 10, arguments);
+	var DEBUG = debug(true && index < 10, arguments);
 
 		var tr = $(tr0);
 
@@ -4331,15 +4360,25 @@ DEBUG && timestamp(arguments, true);
 
 		/* add loanId (for tradingAccount.action) */
 		if(addLoanIdColumn)
+		{
+			DEBUG && GM_log("insertCell() notesTable0.loanIdColumnIndex=" + notesTable0.loanIdColumnIndex);
 			tr0.insertCell(notesTable0.loanIdColumnIndex);
+		}
 
 		if(addNoteIdColumn)
+		{
+			DEBUG && GM_log("insertCell() notesTable0.noteIdColumnIndex=" + notesTable0.noteIdColumnIndex);
 			tr0.insertCell(notesTable0.noteIdColumnIndex);
+		}
 
 		/* add interestRate cell */
 		var interestRateCell = null;
 		if(addInterestRateColumn)
-			interestRateCell = $(tr0.insertCell(notesTable0.interestRateColumnIndex));
+		{
+			DEBUG && GM_log("insertCell() notesTable0.interestRateColumnIndex=" + notesTable0.interestRateColumnIndex);
+			interestRateCell = tr0.insertCell(notesTable0.interestRateColumnIndex);
+			interestRateCell = $(interestRateCell);	//jqueryfi
+		}
 
 		/*
 		 * "This security is no longer listed" takes up 5 columns
@@ -4610,13 +4649,14 @@ var DEBUG = debug(false, arguments);
 		}
 	});
 }
+
 function addHeaders0(notesTable0,
 	addCommentColumn, addLoanIdColumn, addInterestRateColumn, addMarkupColumn, addIRRColumn,
 	addHideRowsCheckBoxes,
 	addDeleteRowButton,
 	addNoteIdColumn)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 
 //	var trHead0 = notesTable0.tHead.rows[0];
 	var trHead = $(notesTable0).find("thead tr");
@@ -4637,9 +4677,12 @@ var DEBUG = debug(false, arguments);
 		var column =
 			notesTable0.noteIdColumnIndex != null
 			? notesTable0.noteIdColumnIndex	// before the noteId column
-			: -1;
+			: -1;	// at the end
+		
+		DEBUG && GM_log("column=" + column);
+
 		var newTH = trHead0.insertCell(column);	//investmentColumnIndex on LC Browse Notes
-		$(newTH).replaceWith("<th class='loanId' style='white-space:nowrap;'>Loan ID*</th>");
+		$(newTH).replaceWith("<th class='loanId LCAC' style='white-space:nowrap;'>Loan ID*</th>");
 
 		if(trFoot)
 		{
@@ -5045,12 +5088,33 @@ function moveFooterRowToFooter(notesTable)
 	}
 }
 
+//GM_log("typeof processMarkupYtm=", typeof processMarkupYtm);	//chrome
+//GM_log("typeof window.processMarkupYtm=", typeof window.processMarkupYtm);	//neither
+//GM_log("typeof unsafeWindow.processMarkupYtm=", typeof unsafeWindow.processMarkupYtm);	//chrome and firefox
+//
+//var showMarkupYtm0 = unsafeWindow.showMarkupYtm;
+//unsafeWindow.showMarkupYtm = function()
+//{
+//	GM_log("showMarkupYtm() arguments=", arguments);
+//	showMarkupYtm0.call(arguments);
+//}
+//GM_log("showMarkupYtm0=", showMarkupYtm0);
+//GM_log("unsageWindow.showMarkupYtm=", unsageWindow.showMarkupYtm);
+
 function setAskingPriceInput(askingPriceInput, newValue)
 {
 	if(newValue !== null)
 		askingPriceInput.val(newValue == '' ? '' : sprintf("%0.2f", newValue));
 
-	processMarkupYtm2(askingPriceInput);
+//	processMarkupYtm2(askingPriceInput);
+
+	GM_log("calling askingPriceInput.change()");
+//	askingPriceInput.trigger('change');	// fire the event to notify the listeners
+//	askingPriceInput.change();	// these aren't working
+
+	var askingPriceInput0 = $(askingPriceInput).get(0);	// get the DOM element
+
+	showMarkupYtm.apply(askingPriceInput0, null, true);	// this is how they call it now
 }
 
 function processMarkupYtm2(askingPriceInput)
@@ -5058,8 +5122,6 @@ function processMarkupYtm2(askingPriceInput)
 	/* as of 2013-10 processMarkupYtm is only on selectLoansForSale.action */
 	if(typeof unsafeWindow.processMarkupYtm != 'function')
 		return;
-
-	askingPriceInput = $(askingPriceInput).get(0);	//YYY sometimes we get a jquery, sometimes the DOM object?
 
 	/* 2013-11-07 they added a reprice parameter to the URL. why? */
 	var reprice = location.href.match(/selectNotesToReprice.action/) != null;
@@ -5155,7 +5217,7 @@ var DEBUG = debug(false, arguments);
 
 function getMarkupAndYtmAj(loanId, orderId, askingPrice, callback)
 {
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	var url = sprintf("/foliofn/getMarkupAndYtmAj.action");
 	var params = sprintf("orderId=%d&loanId=%d&askingPrice=%0.2f", orderId, loanId, askingPrice); // askingPrice MUST be no more than 2 decimal places!
@@ -7211,13 +7273,15 @@ var DEBUG = debug(true, arguments);
 
 			function doSummaryNotes(doSummaryNotes_callback)
 			{
-			var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+			var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 				summaryNotesInput.addClass('lcac_updating');
 
 				timestamp(FUNCNAME, true);
 				getAccountNotesRawData(function doSummaryNotes_getAccountNotesRawData_callback(notes) // callback
 				{
+					var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+
 					timestamp(FUNCNAME, 'getAccountNotesRawData_callback begin');
 
 					/* error */
@@ -7251,10 +7315,7 @@ var DEBUG = debug(true, arguments);
 						var principalRemaining = parseFloat(note.principalRemaining);
 						var interestRate = parseFloat(note.interestRate);
 						var issueDate = Dates.parse(note.issueDate, "yyyyMMdd");
-						DEBUG && GM_log("today=", today, " typeof today=", typeof today);
-						DEBUG && GM_log("issueDate=", issueDate, " typeof issueDate=", typeof issueDate);
 						var ageInMonths = monthDiff(issueDate, today);
-						DEBUG && GM_log("ageInMonths=", ageInMonths);
 
 						principalRemainingTotal += principalRemaining;
 
@@ -7263,6 +7324,8 @@ var DEBUG = debug(true, arguments);
 
 						ageInMonthsTotal += ageInMonths;
 						ageInMonthsTotalWeighted += ageInMonths * principalRemaining;
+
+						GM_log(FUNCNAME + " note=", note);
 
 						if(!loanIds['' + note.loanId])
 						{
@@ -8303,7 +8366,7 @@ var DEBUG = debug(true, arguments);
 
 		function rankRows(notesTable)
 		{
-		var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+		var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 		timestamp(FUNCNAME, true);
 
 			var notesTable0 = notesTable.get(0);
@@ -8421,6 +8484,7 @@ var DEBUG = debug(true, arguments);
 				var checkbox = tr.find("input:checkbox");
 
 				var tds = tr.find("td");
+				GM_log("tds=", tds);
 
 				var loanStatus = tds.eq(notesTable0.loanStatusColumnIndex).text();
 
@@ -8448,15 +8512,19 @@ var DEBUG = debug(true, arguments);
 				if(defaultEtc(loanStatus))
 				{
 					checkboxes.defaultEtc.push(checkbox);
+					GM_log("defaultEtc() returning");
 					return; //continue;
 				}
 				
 				/* Foliofn wierdness: compare accruedInterest to the saved value from notes */
 				var noteId = tr.data('noteId');
+				DEBUG && GM_log("noteId=", noteId);
+
 				var accruedInterest2 = getStoredNote(noteId, "accrual");
+				DEBUG && GM_log("accruedInterest2=", accruedInterest2);
 				if(accruedInterest2 == null)
 				{
-					DEBUG && printStackTrace("noteId=" + noteId + " note=" + note);
+					DEBUG && printStackTrace("accruedInterest2=" + accruedInterest2 + " returning");
 					return;	// continue
 				}
 
@@ -8474,6 +8542,8 @@ var DEBUG = debug(true, arguments);
 				var outstandingPrincipal = html2Value(tr0.cells[notesTable0.outstandingPrincipalColumnIndex].innerHTML);
 				var accruedInterest = html2Value(tr0.cells[notesTable0.accruedInterestColumnIndex].innerHTML);
 				var accruedInterestInMonths = calcInterestInMonths(outstandingPrincipal, interestRate, accruedInterest);
+
+				GM_log("askingPrice=" + askingPrice + " principalPlus=" + principalPlus + " interestRate=" + interestRate);
 						
 				//OPTIMIZE add these values to the checkboxes directly for sorting (is this even allowed?)
 				$.extend(checkbox,
@@ -8531,7 +8601,7 @@ var DEBUG = debug(true, arguments);
 				}
 
 
-//				GM_log("markup=" + markup);
+				DEBUG && GM_log("markup=" + markup);
 				if(markup <= 0.01)
 					checkboxes.markupLessThan1.push(checkbox);
 
@@ -9380,11 +9450,12 @@ var DEBUG = debug(true, arguments);
 
 		if(notesTable.length == 0)	// no table on the page
 		{
-			GM_log("doRepice() notesTable=", notesTable);
+			GM_log("NOT FOUND notesTable=", notesTable);
 			return;
 		}
 
 		var notesTable0 = notesTable.get(0);
+		GM_log("notesTable0=", notesTable0);
 
 		var markupHeader = notesTable.find("th.markup");
 		var ytmHeader = notesTable.find("th.ytm");
@@ -9478,6 +9549,8 @@ var DEBUG = debug(true, arguments);
 				});
 			}
 
+			if(false)
+			{
 			markupHeader
 				.append(""
 					+ "<input type='text' class='lcac_lessthanvalue' style='width:4em;' value='0.02' />"
@@ -9504,7 +9577,10 @@ var DEBUG = debug(true, arguments);
 					unsetLessThan("td.markup", 0);
 				})
 			;
+			}
 
+			if(false)
+			{
 			ytmHeader
 				.append(""
 				+ "<input type='text' class='lcac_targetytm' size='4' value='0.05' />"	//XXX load a default from GM_getValue
@@ -9560,7 +9636,7 @@ var DEBUG = debug(true, arguments);
 					unsetLessThan("td.ytm", 0);
 				})
 				;
-
+			}
 		}
 						
 		trs.each(function()
