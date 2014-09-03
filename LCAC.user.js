@@ -311,68 +311,79 @@ var FUNCNAME = funcname(arguments);
 	return text2Value(value, debug);
 }
 
-function text2Value(value, debug)
+GM_log("HEREXXX ", text2Value("12.694121113196"));
+
+function text2Value(value0, debug)
 {
 var FUNCNAME = funcname(arguments);
 
-	var valueOrig = value;	// remember it in case we have an error later
+	var value = value0;	// remember it in case we have an error later
 
-	if(debug) GM_log("A value=" + value);
+	try
+		{
 
-	if(value == null)
-		return null;
+		if(debug) GM_log("A value=" + value);
 
-	value = value.trim();
+		if(value == null)
+			return null;
 
-	if(value == "" || value == '--')
-		return null;
+		value = value.trim();
 
-	/* remove any +xx% or -xx% we might have added, WARNING: can be "+-0%" for 0% */
-	value = value.replace(/\+-0%/, '');
-	value = value.replace(/[-+][\d\.]+%/, '');
+		if(value == "" || value == '--')
+			return null;
 
-	/* remove any (x.xm) we might have added */
-	value = value.replace(/\([\d.]+m\)/, '');
-	value = value.replace(/\-[\d.]+m/, '');
+		/* remove any +xx% or -xx% we might have added, WARNING: can be "+-0%" for 0% */
+		value = value.replace(/\+-0%/, '');
+		value = value.replace(/[-+][\d\.]+%/, '');
 
-	if(debug) GM_log("C value=" + value);
+		/* remove any (x.xm) we might have added */
+		value = value.replace(/\([\d.]+m\)/, '');
+		value = value.replace(/\-[\d.]+m/, '');
 
-	/* no commas */
-	value = value.replace(/,/g, '');
+		if(debug) GM_log("C value=" + value);
 
-	if(debug) GM_log("D value=" + value);
+		/* no commas */
+		value = value.replace(/,/g, '');
 
-	/* parentheses to negative */
-	value = value.replace(/\((.*)\)/, '-$1');
+		if(debug) GM_log("D value=" + value);
 
-	if(debug) GM_log("E value=" + value);
+		/* parentheses to negative */
+		value = value.replace(/\((.*)\)/, '-$1');
 
-	/* no dollar signs */
-	value = value.replace(/\$/, '');
+		if(debug) GM_log("E value=" + value);
 
-	if(debug) GM_log("F value=" + value);
+		/* no dollar signs */
+		value = value.replace(/\$/, '');
 
-	/* percent to decimal */
-	if(value.match(/%/))
-	{
-		value = value.replace(/%/, '');
-		value /= 100;
+		if(debug) GM_log("F value=" + value);
+
+		/* percent to decimal */
+		if(value.match(/%/))
+		{
+			value = value.replace(/%/, '');
+			value /= 100;
+		}
+
+		if(debug) GM_log("G value=" + value);
+
+	//	if(!debug && isNaN(value))
+	//		return text2Value(value0, true);	// on NaN rerun it with debugging turned on
+
+		value = parseFloat(value);
+
+		if(debug || value === null || value === '' || isNaN(value))
+		{
+			GM_log(FUNCNAME + " returning value=" + value + " value0=" + value0);
+	//		DEBUG && printStackTrace(FUNCNAME + " returning value=" + value + " value0=" + value0);
+		}
+
+		return value;
 	}
-
-	if(debug) GM_log("G value=" + value);
-
-//	if(!debug && isNaN(value))
-//		return text2Value(valueOrig, true);	// on NaN rerun it with debugging turned on
-
-	value = parseFloat(value);
-
-	if(debug || value === null || value === '' || isNaN(value))
+	catch(ex)
 	{
-		GM_log(FUNCNAME + " returning value=" + value + " valueOrig=" + valueOrig);
-//		DEBUG && printStackTrace(FUNCNAME + " returning value=" + value + " valueOrig=" + valueOrig);
+		GM_log("ex=", ex, " value0=" + value0 + " typeof value0=" + typeof value0);
+		return null;
 	}
-
-	return value;
 }
 
 function text2Date(value)
@@ -2465,7 +2476,7 @@ status "Fully Paid"
 */
 			$.each(storedData.notesByNoteId, function(index, note)
 			{
-//				delete note.accrual;
+				delete note.accrual;
 				delete note.nextPaymentDate;
 				delete note.principalRemaining;
 				delete note.status;
@@ -2488,7 +2499,7 @@ status "Fully Paid"
 
 function saveStoredNotes(notes)
 {
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	if(!notes)
 		printStackTrace("notes=", notes);
@@ -2659,11 +2670,22 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 function getStoredInterestRateByLoanId(loanId)
 {
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	var loan = getStoredLoan(loanId);
 
-	return loan == null ? null : parseFloat(loan.interestRate);
+	if(loan == null)
+	{
+		DEBUG && GM_log("returning null");
+		return null;
+	}
+
+	var interestRate = parseFloat(loan.interestRate);
+
+	DEBUG && GM_log("loan.interestRate=" + loan.interestRate);
+	DEBUG && GM_log("interestRate=" + interestRate);
+
+	return interestRate;
 }
 
 function getStoredNoteForLoanId(loanId)
@@ -2970,20 +2992,23 @@ function getComment(comment_loanId)
 	
 function calcInterestInMonths(outstandingPrincipal, interestRate, accruedInterest)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 
 	if(outstandingPrincipal === null || interestRate === null || accruedInterest === null)
+	{
+		DEBUG && GM_log("returning -99");
 		return -99;
+	}
 
 	if(interestRate == null || isNaN(interestRate))
 	{
-//		GM_log("calcInterestInMonths() outstandingPrincipal=" + outstandingPrincipal + " interestRate=" + interestRate + " accruedInterest=" + accruedInterest);
+		DEBUG && GM_log("calcInterestInMonths() returning NaN, outstandingPrincipal=" + outstandingPrincipal + " interestRate=" + interestRate + " accruedInterest=" + accruedInterest);
 		return NaN;
 	}
 
 	if(outstandingPrincipal == 0)
 	{
-//		GM_log("calcInterestInMonths() outstandingPrincipal=" + outstandingPrincipal + " interestRate=" + interestRate + " accruedInterest=" + accruedInterest);
+		DEBUG && GM_log("calcInterestInMonths() returning 0, outstandingPrincipal=" + outstandingPrincipal + " interestRate=" + interestRate + " accruedInterest=" + accruedInterest);
 		return 0;
 	}
 
@@ -4178,7 +4203,7 @@ var DEBUG = debug(true, arguments);
 			if(notesTable0.outstandingPrincipalColumnIndex != null) GM_log("notesTable0.outstandingPrincipalColumnIndex not null, index=" + index + " innerHTML=" + innerHTML);
 			notesTable0.outstandingPrincipalColumnIndex = index;
 		}
-		else if(innerHTML.match(/asking_price|Asking\s+Price/i))
+		else if(innerHTML.match(/asking_price|Asking.*Price/i))
 		{
 			if(notesTable0.askingPriceColumnIndex != null) GM_log("notesTable0.askingPriceColumnIndex not null, index=" + index + " innerHTML=" + innerHTML);
 			notesTable0.askingPriceColumnIndex = index;
@@ -6653,7 +6678,7 @@ var DEBUG = debug(true, arguments);
 
 
 				principalRemaining: parseFloat(note['PrincipalRemaining']),
-				interestRate: parseFloat(note['InterestRate']),	/* already in decimal format, but sometimes doesn't match displayed value */
+				interestRate: parseFloat(note['InterestRate']) / 100,
 				status: note['Status'],
 
 				nextPaymentDate: note['NextPaymentDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
@@ -7312,8 +7337,9 @@ var DEBUG = debug(true, arguments);
 
 						notesTotal++;
 
-						var principalRemaining = parseFloat(note.principalRemaining);
-						var interestRate = parseFloat(note.interestRate);
+						var principalRemaining = note.principalRemaining;
+						var interestRate = note.interestRate;
+						GM_log("interestRate=" + interestRate);
 						var issueDate = Dates.parse(note.issueDate, "yyyyMMdd");
 						var ageInMonths = monthDiff(issueDate, today);
 
@@ -7351,7 +7377,7 @@ var DEBUG = debug(true, arguments);
 							, notesTotal
 							, loansTotal
 							, principalRemainingTotal
-							, interestRateAvg, interestRateAvgWeighted
+							, interestRateAvg * 100, interestRateAvgWeighted * 100
 							, ageInMonthsAvg, ageInMonthsAvgWeighted
 							));
 
@@ -8543,7 +8569,7 @@ var DEBUG = debug(true, arguments);
 				var accruedInterest = html2Value(tr0.cells[notesTable0.accruedInterestColumnIndex].innerHTML);
 				var accruedInterestInMonths = calcInterestInMonths(outstandingPrincipal, interestRate, accruedInterest);
 
-				GM_log("askingPrice=" + askingPrice + " principalPlus=" + principalPlus + " interestRate=" + interestRate);
+				GM_log("askingPrice=" + askingPrice + " accruedInterest=" + accruedInterest + " accruedInterestInMonths=" + accruedInterestInMonths + " principalPlus=" + principalPlus + " interestRate=" + interestRate);
 						
 				//OPTIMIZE add these values to the checkboxes directly for sorting (is this even allowed?)
 				$.extend(checkbox,
