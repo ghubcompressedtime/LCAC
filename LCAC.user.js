@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.203
+// @version        3.204
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -2476,13 +2476,13 @@ status "Fully Paid"
 */
 			$.each(storedData.notesByNoteId, function(index, note)
 			{
-				delete note.accrual;
+//				delete note.accrual;
 				delete note.nextPaymentDate;
 				delete note.principalRemaining;
 				delete note.status;
 				delete note.paymentHistory;
-	//			delete note.amountLent;
-	//			delete note.paymentReceived;
+//				delete note.amountLent;
+//				delete note.paymentReceived;
 			});
 			
 			//cleanup old data
@@ -8497,6 +8497,8 @@ var DEBUG = debug(true, arguments);
 					.find("tbody tr")	// tbody means not in the header (or footer)
 						.not(".tfoot")	// double check to make sure we moved it to the footer
 						.not(":contains(No Results Found)");
+			
+			DEBUG && GM_log("trs=", trs);
 
 			var interestAnomaly = [];
 			var row = -1, numselected = 0;
@@ -8506,6 +8508,8 @@ var DEBUG = debug(true, arguments);
 				row++;
 				var tr0 = this;
 				var tr = $(this);
+			
+				DEBUG && GM_log("tr=", tr);
 				
 				var checkbox = tr.find("input:checkbox");
 
@@ -8513,6 +8517,7 @@ var DEBUG = debug(true, arguments);
 				GM_log("tds=", tds);
 
 				var loanStatus = tds.eq(notesTable0.loanStatusColumnIndex).text();
+				DEBUG && GM_log("loanStatus=" + loanStatus);
 
 				/* can't re-submit these (but can cancel them) */
 				function defaultEtc(loanStatus)
@@ -8545,6 +8550,9 @@ var DEBUG = debug(true, arguments);
 				/* Foliofn wierdness: compare accruedInterest to the saved value from notes */
 				var noteId = tr.data('noteId');
 				DEBUG && GM_log("noteId=", noteId);
+
+				var note = getStoredNote(noteId);
+				DEBUG && GM_log("note=", note);
 
 				var accruedInterest2 = getStoredNote(noteId, "accrual");
 				DEBUG && GM_log("accruedInterest2=", accruedInterest2);
@@ -8897,9 +8905,11 @@ var DEBUG = debug(true, arguments);
 		var checkboxes;	// this is used later down when the buttons are clicked
 		function recalcCheckboxes()
 		{
-		var DEBUG = debug(false, arguments);
+		var DEBUG = debug(true, arguments);
 
 			checkboxes = rankRows(notesTable1);
+
+			DEBUG && GM_log("checkboxes=", checkboxes);
 			
 			updateButtons(checkboxes);	// this is pretty fast
 		}
