@@ -5153,49 +5153,92 @@ function processMarkupYtm2(askingPriceInput)
 	unsafeWindow.processMarkupYtm(askingPriceInput, reprice);
 }
 
+/* per http://stackoverflow.com/questions/1026069/capitalize-the-first-letter-of-string-in-javascript */
+function capitaliseFirstLetter(string, tolowercase)
+{
+    if(tolowercase)
+    	return string.charAt(0).toLowerCase() + string.slice(1);
+	else
+    	return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+
 function parseAccountDetail(innerHTML)
 {
 var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
-	innerHTML = innerHTML.replace(/[\r\n]|<br>|<br\/>/g, ' ');
+	var vars = {};
 
-	try
-	{
-		var totalPayments = text2Value(innerHTML.match(/>\s*Tradeable[\s\S]*Payments to Date[\s\S]*?\$([\d,.]+)/)[1]);
-		DEBUG && GM_log("totalPayments=" + totalPayments);
+	var dom = $(innerHTML);
+	GM_log("dom=", dom);
 
-		var accruedInterest = text2Value(innerHTML.match(/>\s*Tradeable[\s\S]*>Accrued Interest[\s\S]*?\$([\d,.]+)/)[1]);
-		DEBUG && GM_log("accruedInterest=" + accruedInterest);
+	var tradeableDiv = $("div#account-details2", dom);
 
-		var interestReceived = text2Value(innerHTML.match(/>\s*Tradeable[\s\S]*>Interest[\s\S]*?\$([\d,.]+)/)[1]);
-		DEBUG && GM_log("interestReceived=" + interestReceived);
+	/* get the number of each kind of note */
+	tradeableDiv.find(":header:contains(Note Status) ~ table tbody tr th:nth-child(1):contains('(')")
+		.each(function(index, element)
+		{
+			var text = jQ(element).text();
 
-		var availableCash = text2Value(innerHTML.match(/<h4>Available\s*?Cash<\/h4>.*?\$([\d,.]+)/)[1]);
-		DEBUG && GM_log("availableCash=" + availableCash);
-		
-		var inFundingNotes = text2Value(innerHTML.match(/<h4>Committed\s*?Cash<\/h4>.*?\$([\d,.]+)/)[1]);
-		DEBUG && GM_log("inFundingNotes=" + inFundingNotes);
+			// e.g. "Issued & Current (2,724)"
+			text = text
+				.replace('&', 'And')
+				.replace('-', 'To')
+				.replace('days', 'Days')
+				.replace(/[\*),\s]/g, '')
 
-		var outstandingPrincipal = text2Value(innerHTML.match(/<h4>Outstanding\s*?Principal<\/h4>.*?\$([\d,.]+)/)[1]);
-		DEBUG && GM_log("outstandingPrincipal=" + outstandingPrincipal);
+			text = text.split('(');	
 
-		var accountTotal = availableCash + inFundingNotes + outstandingPrincipal;
+			var id = text[0];
+			var value = text[1];
 
-		return {
-			totalPayments: totalPayments,
-			accruedInterest: accruedInterest,
-			interestReceived: interestReceived,
-			availableCash: availableCash,
-			inFundingNotes: inFundingNotes,
-			outstandingPrincipal: outstandingPrincipal,
-			accountTotal: accountTotal,
-		};
-	}
-	catch(ex)
-	{
-		GM_log(FUNCNAME + " ex=", ex, " ", ex.stack);
-		return null;
-	}
+			id = capitaliseFirstLetter(id, true);
+			vars[id] = value;
+		})
+	
+	tradeableDiv.find(":header:contains(Details) ~ table tbody tr")
+		.each(function(index, element)
+		{
+			var tr = $(element);
+
+			var id = tr.find(":eq(0)").text().replace(/ /g, '');
+
+			id[0] = id[0].toLowerCase();
+			
+			var value = tr.find(":eq(1)").text();
+
+			value = text2Value(value);
+
+			id = capitaliseFirstLetter(id, true);
+			vars[id] = value;
+		});
+
+	var accountSummaryDiv = $("div#lending-club-account-summary", dom);
+	accountSummaryDiv.find("> *").not(".plusSignal")
+		.each(function(index, element)
+		{
+			element = $(element);
+			var text = element.text().trim();
+			var split = text.split(/\s+/);
+
+			var id = split[0];
+			var value = split[1];
+			value = text2Value(value);
+			
+			id = capitaliseFirstLetter(id, true);
+			
+			vars[id] = value;
+		});
+
+	/* what we used to call them */
+	vars['totalPayments'] = vars['paymentstoDate'];
+	vars['interestReceived'] = vars['interest'];
+	vars['inFundingNotes'] = vars['committedCash'];	// they changed the name
+
+	vars.accountTotal = vars.availableCash + vars.inFundingNotes + vars.outstandingPrincipal;
+
+	GM_log(FUNCNAME + " vars=", vars);
+	return vars;
 }
 
 // add this to URLs to try and bypass cache
@@ -7252,16 +7295,18 @@ var DEBUG = debug(true, arguments);
 
 				var str = ""
 					+ sprintfOrEllipsis(updateVitals.vars.accountTotal, "$%0.2f")
-					+ "\t"
-					+ sprintfOrEllipsis(updateVitals.vars.totalPayments, "$%0.2f")
-					+ "\t"
-					+ sprintfOrEllipsis(updateVitals.vars.accruedInterest, "$%0.2f")
-					+ "\t"
-					+ sprintfOrEllipsis(updateVitals.vars.availableCash, "$%0.2f")
-					+ "\t"
-					+ sprintfOrEllipsis(updateVitals.vars.purchasedPendingTotal, "$%0.2f")
-					+ "\t"
-					+ sprintfOrEllipsis(updateVitals.vars.soldPendingTotal, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.totalPayments, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.accruedInterest, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.availableCash, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.purchasedPendingTotal, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.soldPendingTotal, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.notYetIssued, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.issuedAndCurrent, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.inGracePeriod, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late16To30Days, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late31To120Days, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.fullyPaid, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.default, "%d")
 					;
 				
 				GM_log("str=", str);
@@ -7298,14 +7343,14 @@ var DEBUG = debug(true, arguments);
 
 			function doSummaryNotes(doSummaryNotes_callback)
 			{
-			var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+			var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 				summaryNotesInput.addClass('lcac_updating');
 
 				timestamp(FUNCNAME, true);
 				getAccountNotesRawData(function doSummaryNotes_getAccountNotesRawData_callback(notes) // callback
 				{
-					var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+					var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 					timestamp(FUNCNAME, 'getAccountNotesRawData_callback begin');
 
@@ -7339,7 +7384,7 @@ var DEBUG = debug(true, arguments);
 
 						var principalRemaining = note.principalRemaining;
 						var interestRate = note.interestRate;
-						GM_log("interestRate=" + interestRate);
+						DEBUG && GM_log("interestRate=" + interestRate);
 						var issueDate = Dates.parse(note.issueDate, "yyyyMMdd");
 						var ageInMonths = monthDiff(issueDate, today);
 
@@ -7351,7 +7396,7 @@ var DEBUG = debug(true, arguments);
 						ageInMonthsTotal += ageInMonths;
 						ageInMonthsTotalWeighted += ageInMonths * principalRemaining;
 
-						GM_log(FUNCNAME + " note=", note);
+						DEBUG && GM_log(FUNCNAME + " note=", note);
 
 						if(!loanIds['' + note.loanId])
 						{
