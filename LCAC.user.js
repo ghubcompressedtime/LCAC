@@ -5171,14 +5171,14 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	var dom = $(innerHTML);
 	GM_log("dom=", dom);
+	
+	var tradeableDiv = dom.find("div#account-details2");
 
-	var tradeableDiv = $("div#account-details2", dom);
-
-	/* get the number of each kind of note */
-	tradeableDiv.find(":header:contains(Note Status) ~ table tbody tr th:nth-child(1):contains('(')")
+	tradeableDiv.find("table th:contains('(')")
 		.each(function(index, element)
 		{
 			var text = jQ(element).text();
+			GM_log("text=" + text);
 
 			// e.g. "Issued & Current (2,724)"
 			text = text
@@ -5187,10 +5187,11 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 				.replace('days', 'Days')
 				.replace(/[\*),\s]/g, '')
 
-			text = text.split('(');	
+			var split = text.split('(');	
+			GM_log("split=" + split);
 
-			var id = text[0];
-			var value = text[1];
+			var id = split[0] + "_count";
+			var value = split[1];
 
 			id = capitaliseFirstLetter(id, true);
 			vars[id] = value;
@@ -7300,13 +7301,14 @@ var DEBUG = debug(true, arguments);
 					+ "\t" + sprintfOrEllipsis(updateVitals.vars.availableCash, "$%0.2f")
 					+ "\t" + sprintfOrEllipsis(updateVitals.vars.purchasedPendingTotal, "$%0.2f")
 					+ "\t" + sprintfOrEllipsis(updateVitals.vars.soldPendingTotal, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.notYetIssued, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.issuedAndCurrent, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.inGracePeriod, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late16To30Days, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late31To120Days, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.fullyPaid, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.default, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.notYetIssued_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.issuedAndCurrent_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.inGracePeriod_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late16To30Days_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late31To120Days_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.fullyPaid_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.default_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateVitals.vars.chargedOff_count, "%d")
 					;
 				
 				GM_log("str=", str);
