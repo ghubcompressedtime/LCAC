@@ -6707,7 +6707,7 @@ var DEBUG = debug(true, arguments);
 			var note = csvArray[index];
 
 			if(index < 10)
-				GM_log(FUNCNAME + " note['Investment']=", note['Investment']);
+				GM_log(FUNCNAME + " note=", note);
 
 			var note2 = {
 				noteId: note['NoteId'],
@@ -6718,7 +6718,7 @@ var DEBUG = debug(true, arguments);
 				amountLent: parseFloat(note['Invested'] != null ? note['Invested'] : note['Investment'] != null ? note['Investment'] : note['AmountLent']),
 				status: note['Status'],
 				orderDate: note['OrderDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
-				issueDate: note['Issue Date'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
+				issueDate: (note['Issue Date'] != null ? note['Issue Date'] : note['Loan Issue Date']).replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
 
 
 				principalRemaining: parseFloat(note['PrincipalRemaining']),
