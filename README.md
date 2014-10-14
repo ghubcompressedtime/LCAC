@@ -1,6 +1,6 @@
 Step 1. Install Greasemonkey (for Firefox) https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/ or Tampermonkey (for Chrome) https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo
 
-Step 2. Follow this installion Link: https://github.com/ghubcompressedtime/LCAC/raw/master/LCAC.user.js
+Step 2. Follow this installtion Link: https://github.com/ghubcompressedtime/LCAC/raw/master/LCAC.user.js
 
 From the Lenders perspective, LendingClub's website is pretty basic. This script adds some features which I think makes it a lot easier to use.
 
