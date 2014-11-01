@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.207
+// @version        3.208
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -109,6 +109,7 @@ else
 	GM_log = function(){};
 
 GM_log("lendingclubaddcomments $Revision: 425 $");
+
 
 localStorage.removeItem("notesAllPrev");	//YYY delete these since we don't use them anymore
 
@@ -2354,13 +2355,15 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	return note;
 }
 
+
+/*
+ * return array of array of string
+ */
 function csv2Array(csv)
 {
 var DEBUG = debug(false, arguments, false), FUNCNAME = funcname(arguments);
 
 	DEBUG && GM_log("csv.length=", csv.length);
-
-	csv = csv.replace(/"/g, '');	// remove doublequotes
 
 	var csvArr = csv.split(/\r\n|\r|\n/);
 
@@ -2374,24 +2377,50 @@ var DEBUG = debug(false, arguments, false), FUNCNAME = funcname(arguments);
 
 	var retArr = [];
 
-	DEBUG && GM_log("csvArr.length=", csvArr.length);
-	for(var arrIndex = 0; arrIndex < csvArr.length; arrIndex++)
+	var line;
+	while(line = csvArr.shift())
 	{
-		var row = csvArr[arrIndex].trim();
+		DEBUG && GM_log("line=" + line);
 
-		if(row.match(/^$/))
+		var length = line.length;
+
+		if(length == 0)
 			continue;
-		
-		row = row.split(/,/);
 
-		for(var rowIndex = 0; rowIndex < row.length; rowIndex++)
+		var rowarr = [];
+		var stringarr = [];
+		var inString = false;
+		for(var charIndex = 0; charIndex < length; charIndex++)
 		{
-			row[rowIndex] = row[rowIndex].trim();	// trim the value
+			var ch = line.charAt(charIndex);
 
-			row[headers[rowIndex]] = row[rowIndex];	// also assign the value as a property on the row
+			if(ch == '"')
+				inString = !inString;
+			else if(!inString && ch == ',')
+			{
+				var string = stringarr.join('');
+				rowarr.push(string);
+				stringarr = [];
+			}
+			else
+				stringarr.push(ch);
+		}
+		
+		var string = stringarr.join('');
+		rowarr.push(string);
+		
+		
+		/* add properties to match headers */
+		for(var rowIndex = 0; rowIndex < rowarr.length; rowIndex++)
+		{
+			rowarr[rowIndex] = rowarr[rowIndex].trim();	// trim the value
+
+			var header = headers[rowIndex];
+
+			rowarr[header] = rowarr[rowIndex];	// also assign the value as a property on the row
 		}
 
-		retArr.push(row);
+		retArr.push(rowarr);
 	}
 
 	DEBUG && GM_log("retArr.length=", retArr.length);
@@ -6684,6 +6713,15 @@ var DEBUG = debug(true, arguments);
 	{
 		return sprintf("/browse/loanDetail.action?loan_id=%s", loanId);
 	}
+		
+	function toYYYYMMDD(datestr)
+	{
+		if(!datestr)
+			return datestr;
+
+		return datestr.replace(/(\d+)[^\d](\d+)[^\d](\d+)/, "$3$1$2");
+	}
+
 
 	/*
 	 * END http://www.greywyvern.com/?post=258
@@ -6691,7 +6729,7 @@ var DEBUG = debug(true, arguments);
 
 	function parseAccountNotesRawDataCsv(responseText)
 	{
-	var DEBUG = debug(true, arguments, false), FUNCNAME = funcname(arguments);
+	var DEBUG = debug(false, arguments, false), FUNCNAME = funcname(arguments);
 		timestamp(FUNCNAME, true);
 
 		timestamp(FUNCNAME, 'before csv2Array');
@@ -6707,7 +6745,7 @@ var DEBUG = debug(true, arguments);
 			var note = csvArray[index];
 
 			if(index < 10)
-				GM_log(FUNCNAME + " note=", note);
+				DEBUG && GM_log(FUNCNAME + " note=", note);
 
 			var note2 = {
 				noteId: note['NoteId'],
@@ -6715,20 +6753,22 @@ var DEBUG = debug(true, arguments);
 				orderId: note['OrderId'],
 				accrual: parseFloat(note['Accrual']),
 				paymentReceived: parseFloat(note['PaymentsReceivedToDate']),
-				amountLent: parseFloat(note['Invested'] != null ? note['Invested'] : note['Investment'] != null ? note['Investment'] : note['AmountLent']),
+				amountLent: parseFloat(note['Invested'] ? note['Invested'] : note['Investment'] ? note['Investment'] : note['AmountLent']),
 				status: note['Status'],
-				orderDate: note['OrderDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
-				issueDate: (note['Issue Date'] != null ? note['Issue Date'] : note['Loan Issue Date']).replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
+				orderDate: toYYYYMMDD(note['OrderDate']),
 
+				issueDate0: toYYYYMMDD(note['Issue Date']),
+				loanIssueDate: toYYYYMMDD(note['Loan Issue Date']),
+				noteIssueDate: toYYYYMMDD(note['Note Issue Date']),
 
 				principalRemaining: parseFloat(note['PrincipalRemaining']),
 				interestRate: parseFloat(note['InterestRate']) / 100,
 				status: note['Status'],
 
-				nextPaymentDate: note['NextPaymentDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
-
-//				loanStatusDate: note['LoanStatusDate'].replace(/(\d+)\/(\d+)\/(\d+)/, "$3$1$2"),	// YYYYMMDD
+				nextPaymentDate: toYYYYMMDD(note['NextPaymentDate']),
 			};
+				
+			note2.issueDate = note2.issueDate0 ? note2.issueDate0 : (note2.loanIssueDate ? note2.loanIssueDate : note2.noteIssueDate);
 
 			notes.push(note2);
 		}
@@ -7386,9 +7426,14 @@ var DEBUG = debug(true, arguments);
 
 						var principalRemaining = note.principalRemaining;
 						var interestRate = note.interestRate;
-						DEBUG && GM_log("interestRate=" + interestRate);
 						var issueDate = Dates.parse(note.issueDate, "yyyyMMdd");
 						var ageInMonths = monthDiff(issueDate, today);
+
+						if(ageInMonths > 12 * 10)
+						{
+							GM_log("note.issueDate=" + note.issueDate + " issueDate=" + issueDate);
+							GM_log("WARNING ageInMonths=" + ageInMonths + " note=", note, " issueDate=", issueDate);
+						}
 
 						principalRemainingTotal += principalRemaining;
 
