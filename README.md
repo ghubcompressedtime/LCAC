@@ -1,3 +1,7 @@
+Step 1. Install Greasemonkey (for Firefox) https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/ or Tampermonkey (for Chrome) https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo
+
+Step 2. Follow this installtion Link: https://github.com/ghubcompressedtime/LCAC/raw/master/LCAC.user.js
+
 From the Lenders perspective, LendingClub's website is pretty basic. This script adds some features which I think makes it a lot easier to use.
 
 Features:
@@ -34,3 +38,5 @@ The default body is simply:
 return principalPlus * (interestRate > 0.10 ? 1.02 : 1.015); /* if the interest rate is more than 10% mark it up 2% otherwise mark it up 1.5% */
 
 Happy Lending!
+
+
