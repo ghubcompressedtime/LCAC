@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.208
+// @version        3.210
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -89,13 +89,14 @@ compress stored data for ffn export
 
 console.log("LCAC @version " + GM_info.script.version);
 
-unsafeWindow.jQ = jQuery;
-
 //GM_setValue("DEBUG", true);
 //GM_setValue("TESTING", true);
-//GM_setValue("LOADSUMMARYATSTARTUP", false);
+//GM_setValue("LOADSUMMARYATSTARTUP", true);
 
 var DEBUG = GM_getValue("DEBUG", false);
+
+//if(DEBUG)
+//	unsafeWindow.jQuery = unsafeWindow.jQ = jQuery;
 
 var GM_log;
 if(DEBUG && unsafeWindow.console) {
@@ -156,9 +157,6 @@ var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla
 GM_log("LOADSUMMARYATSTARTUP=", LOADSUMMARYATSTARTUP);
 
 var notesRawDataURL = '/account/notesRawDataExtended.action';
-
-if(TESTING)
-	unsafeWindow.jQ = jQuery;	// so we can debug in firebug
 
 var printStackTrace;
 if(DEBUG && unsafeWindow.console) {
@@ -2143,6 +2141,19 @@ var DEBUG = debug(false, arguments);
 	GM_addStyle(".object-details {white-space:nowrap;}");
 }
 
+// from http://pe.usps.gov/text/LabelingLists/L002.htm
+// var id = null; var obj = {}; jQ("table tr").find("td:nth-child(1), td:nth-child(3)").map(function(index, element){var text = jQ(element).text().trim(); if(index % 2 == 0) id = text; else obj[id] = text}); JSON.stringify(obj)
+var zip3obj = null;
+function getZip3(zip3)
+{
+	if(!zip3obj)
+		zip3obj = JSON.parse(
+			'{"100":"NEW YORK NY","101":"NEW YORK NY","102":"NEW YORK NY","103":"BROOKLYN NY","104":"BRONX NY","105":"WESTCHESTER NY","106":"WHITE PLAINS NY","107":"YONKERS NY","108":"NEW ROCHELLE NY","109":"WESTCHESTER NY","110":"QUEENS NY","111":"LONG ISLAND CITY NY","112":"BROOKLYN NY","113":"FLUSHING NY","114":"JAMAICA NY","115":"WESTERN NASSAU NY","116":"FAR ROCKAWAY NY","117":"MID-ISLAND NY","118":"HICKSVILLE NY","119":"MID-ISLAND NY","120":"ALBANY NY","121":"ALBANY NY","122":"ALBANY NY","123":"SCHENECTADY NY","124":"MID-HUDSON NY","125":"MID-HUDSON NY","126":"POUGHKEEPSIE NY","127":"MID-HUDSON NY","128":"ALBANY NY","129":"ALBANY NY","130":"SYRACUSE NY","131":"SYRACUSE NY","132":"SYRACUSE NY","133":"SYRACUSE NY","134":"SYRACUSE NY","135":"SYRACUSE NY","136":"SYRACUSE NY","137":"SYRACUSE NY","138":"SYRACUSE NY","139":"SYRACUSE NY","140":"BUFFALO NY","141":"BUFFALO NY","142":"BUFFALO NY","143":"NIAGARA FALLS NY","144":"ROCHESTER NY","145":"ROCHESTER NY","146":"ROCHESTER NY","147":"BUFFALO NY","148":"ROCHESTER NY","149":"ROCHESTER NY","150":"PITTSBURGH PA","151":"PITTSBURGH PA","152":"PITTSBURGH PA","153":"PITTSBURGH PA","154":"PITTSBURGH PA","155":"JOHNSTOWN PA","156":"PITTSBURGH PA","157":"JOHNSTOWN PA","158":"JOHNSTOWN PA","159":"JOHNSTOWN PA","160":"PITTSBURGH PA","161":"PITTSBURGH PA","162":"PITTSBURGH PA","163":"ERIE PA","164":"ERIE PA","165":"ERIE PA","166":"JOHNSTOWN PA","167":"ERIE PA","168":"JOHNSTOWN PA","169":"HARRISBURG PA","170":"HARRISBURG PA","171":"HARRISBURG PA","172":"HARRISBURG PA","173":"HARRISBURG PA","174":"HARRISBURG PA","175":"HARRISBURG PA","176":"HARRISBURG PA","177":"HARRISBURG PA","178":"HARRISBURG PA","179":"HARRISBURG PA","180":"LEHIGH VALLEY PA","181":"ALLENTOWN PA","182":"LEHIGH VALLEY PA","183":"LEHIGH VALLEY PA","184":"LEHIGH VALLEY PA","185":"LEHIGH VALLEY PA","186":"LEHIGH VALLEY PA","187":"LEHIGH VALLEY PA","188":"LEHIGH VALLEY PA","189":"PHILADELPHIA PA","190":"PHILADELPHIA PA","191":"PHILADELPHIA PA","192":"PHILADELPHIA PA","193":"WILMINGTON DE","194":"PHILADELPHIA PA","195":"HARRISBURG PA","196":"HARRISBURG PA","197":"WILMINGTON DE","198":"WILMINGTON DE","199":"WILMINGTON DE","200":"WASHINGTON DC","201":"DULLES VA","202":"WASHINGTON DC","203":"WASHINGTON DC","204":"WASHINGTON DC","205":"WASHINGTON DC","206":"SOUTHERN MD MD","207":"SOUTHERN MD MD","208":"SUBURBAN MD MD","209":"SILVER SPRING MD","210":"LINTHICUM MD","211":"LINTHICUM MD","212":"BALTIMORE MD","214":"ANNAPOLIS MD","215":"BALTIMORE MD","216":"EASTERN SHORE MD","217":"FREDERICK MD","218":"SALISBURY MD","219":"BALTIMORE MD","220":"NORTHERN VA VA","221":"NORTHERN VA VA","222":"ARLINGTON VA","223":"ALEXANDRIA VA","224":"RICHMOND VA","225":"RICHMOND VA","226":"DULLES VA","227":"DULLES VA","228":"CHARLOTTESVLE VA","229":"CHARLOTTESVLE VA","230":"RICHMOND VA","231":"RICHMOND VA","232":"RICHMOND VA","233":"NORFOLK VA","234":"NORFOLK VA","235":"NORFOLK VA","236":"NORFOLK VA","237":"PORTSMOUTH VA","238":"RICHMOND VA","239":"RICHMOND VA","240":"ROANOKE VA","241":"ROANOKE VA","242":"KNOXVILLE TN","243":"ROANOKE VA","244":"CHARLOTTESVLE VA","245":"ROANOKE VA","246":"CHARLESTON WV","247":"CHARLESTON WV","248":"CHARLESTON WV","249":"CHARLESTON WV","250":"CHARLESTON WV","251":"CHARLESTON WV","252":"CHARLESTON WV","253":"CHARLESTON WV","254":"BALTIMORE MD","255":"CHARLESTON WV","256":"CHARLESTON WV","257":"CHARLESTON WV","258":"CHARLESTON WV","259":"CHARLESTON WV","260":"PITTSBURGH PA","261":"CHARLESTON WV","262":"CHARLESTON WV","263":"CHARLESTON WV","264":"CHARLESTON WV","265":"PITTSBURGH PA","266":"CHARLESTON WV","267":"BALTIMORE MD","268":"DULLES VA","270":"GREENSBORO NC","271":"WINSTON-SALEM NC","272":"GREENSBORO NC","273":"GREENSBORO NC","274":"GREENSBORO NC","275":"RALEIGH NC","276":"RALEIGH NC","277":"DURHAM NC","278":"ROCKY MOUNT NC","279":"ROCKY MOUNT NC","280":"CHARLOTTE NC","281":"CHARLOTTE NC","282":"CHARLOTTE NC","283":"FAYETTEVILLE NC","284":"FAYETTEVILLE NC","285":"FAYETTEVILLE NC","286":"GREENSBORO NC","287":"ASHEVILLE NC","288":"ASHEVILLE NC","289":"ASHEVILLE NC","290":"COLUMBIA SC","291":"COLUMBIA SC","292":"COLUMBIA SC","293":"GREENVILLE SC","294":"CHARLESTON SC","295":"COLUMBIA SC","296":"GREENVILLE SC","297":"CHARLOTTE NC","298":"AUGUSTA GA","299":"CHARLESTON SC","300":"NORTH METRO GA","301":"ATLANTA GA","302":"ATLANTA GA","303":"ATLANTA GA","304":"MACON GA","305":"NORTH METRO GA","306":"NORTH METRO GA","307":"CHATTANOOGA TN","308":"AUGUSTA GA","309":"AUGUSTA GA","310":"MACON GA","311":"ATLANTA GA","312":"MACON GA","313":"JACKSONVILLE FL","314":"JACKSONVILLE FL","315":"JACKSONVILLE FL","316":"TALLAHASSEE FL","317":"TALLAHASSEE FL","318":"MACON GA","319":"MACON GA","320":"JACKSONVILLE FL","321":"ORLANDO FL","322":"JACKSONVILLE FL","323":"TALLAHASSEE FL","324":"PENSACOLA FL","325":"PENSACOLA FL","326":"JACKSONVILLE FL","327":"ORLANDO FL","328":"ORLANDO FL","329":"ORLANDO FL","330":"MIAMI FL","331":"MIAMI FL","332":"MIAMI FL","333":"MIAMI FL","334":"WEST PALM BCH FL","335":"TAMPA FL","336":"TAMPA FL","337":"MANASOTA FL","338":"MANASOTA FL","339":"FT MYERS FL","340":"APO/FPO AA","341":"FT MYERS FL","342":"MANASOTA FL","344":"JACKSONVILLE FL","346":"TAMPA FL","347":"ORLANDO FL","349":"WEST PALM BCH FL","350":"BIRMINGHAM AL","351":"BIRMINGHAM AL","352":"BIRMINGHAM AL","354":"BIRMINGHAM AL","355":"BIRMINGHAM AL","356":"BIRMINGHAM AL","357":"BIRMINGHAM AL","358":"BIRMINGHAM AL","359":"BIRMINGHAM AL","360":"MONTGOMERY AL","361":"MONTGOMERY AL","362":"BIRMINGHAM AL","363":"MONTGOMERY AL","364":"MONTGOMERY AL","365":"MOBILE AL","366":"MOBILE AL","367":"MONTGOMERY AL","368":"MONTGOMERY AL","369":"JACKSON MS","370":"NASHVILLE TN","371":"NASHVILLE TN","372":"NASHVILLE TN","373":"CHATTANOOGA TN","374":"CHATTANOOGA TN","375":"MEMPHIS TN","376":"KNOXVILLE TN","377":"KNOXVILLE TN","378":"KNOXVILLE TN","379":"KNOXVILLE TN","380":"MEMPHIS TN","381":"MEMPHIS TN","382":"MEMPHIS TN","383":"MEMPHIS TN","384":"NASHVILLE TN","385":"NASHVILLE TN","386":"MEMPHIS TN","387":"JACKSON MS","388":"MEMPHIS TN","389":"JACKSON MS","390":"JACKSON MS","391":"JACKSON MS","392":"JACKSON MS","393":"JACKSON MS","394":"HATTIESBURG MS","395":"GULFPORT MS","396":"JACKSON MS","397":"JACKSON MS","398":"TALLAHASSEE FL","399":"ATLANTA GA","400":"LOUISVILLE KY","401":"LOUISVILLE KY","402":"LOUISVILLE KY","403":"LEXINGTON KY","404":"LEXINGTON KY","405":"LEXINGTON KY","406":"FRANKFORT KY","407":"KNOXVILLE TN","408":"KNOXVILLE TN","409":"KNOXVILLE TN","410":"CINCINNATI OH","411":"CHARLESTON WV","412":"CHARLESTON WV","413":"CAMPTON KY","414":"CAMPTON KY","415":"CHARLESTON WV","416":"CHARLESTON WV","417":"KNOXVILLE TN","418":"KNOXVILLE TN","420":"PADUCAH KY","421":"NASHVILLE TN","422":"NASHVILLE TN","423":"EVANSVILLE IN","424":"EVANSVILLE IN","425":"KNOXVILLE TN","426":"KNOXVILLE TN","427":"LOUISVILLE KY","430":"COLUMBUS OH","431":"COLUMBUS OH","432":"COLUMBUS OH","433":"COLUMBUS OH","434":"TOLEDO OH","435":"TOLEDO OH","436":"TOLEDO OH","437":"COLUMBUS OH","438":"COLUMBUS OH","439":"PITTSBURGH PA","440":"CLEVELAND OH","441":"CLEVELAND OH","442":"AKRON OH","443":"AKRON OH","444":"CLEVELAND OH","445":"CLEVELAND OH","446":"AKRON OH","447":"AKRON OH","448":"CLEVELAND OH","449":"CLEVELAND OH","450":"CINCINNATI OH","451":"CINCINNATI OH","452":"CINCINNATI OH","453":"DAYTON OH","454":"DAYTON OH","455":"SPRINGFIELD OH","456":"COLUMBUS OH","457":"COLUMBUS OH","458":"COLUMBUS OH","459":"CINCINNATI OH","460":"INDIANAPOLIS IN","461":"INDIANAPOLIS IN","462":"INDIANAPOLIS IN","463":"GARY IN","464":"GARY IN","465":"SOUTH BEND IN","466":"SOUTH BEND IN","467":"FORT WAYNE IN","468":"FORT WAYNE IN","469":"KOKOMO IN","470":"CINCINNATI OH","471":"LOUISVILLE KY","472":"INDIANAPOLIS IN","473":"MUNCIE IN","474":"INDIANAPOLIS IN","475":"EVANSVILLE IN","476":"EVANSVILLE IN","477":"EVANSVILLE IN","478":"INDIANAPOLIS IN","479":"LAFAYETTE IN","480":"METROPLEX MI","481":"DETROIT MI","482":"DETROIT MI","483":"METROPLEX MI","484":"METROPLEX MI","485":"METROPLEX MI","486":"METROPLEX MI","487":"METROPLEX MI","488":"LANSING MI","489":"LANSING MI","490":"KALAMAZOO MI","491":"KALAMAZOO MI","492":"DETROIT MI","493":"GRAND RAPIDS MI","494":"GRAND RAPIDS MI","495":"GRAND RAPIDS MI","496":"TRAVERSE CITY MI","497":"TRAVERSE CITY MI","498":"IRON MOUNTAIN MI","499":"IRON MOUNTAIN MI","500":"DES MOINES IA","501":"DES MOINES IA","502":"DES MOINES IA","503":"DES MOINES IA","504":"WATERLOO IA","505":"DES MOINES IA","506":"WATERLOO IA","507":"WATERLOO IA","508":"DES MOINES IA","509":"DES MOINES IA","510":"SIOUX FALLS SD","511":"SIOUX FALLS SD","512":"SIOUX FALLS SD","513":"SIOUX FALLS SD","514":"DES MOINES IA","515":"OMAHA NE","516":"OMAHA NE","520":"CEDAR RAPIDS IA","521":"WATERLOO IA","522":"CEDAR RAPIDS IA","523":"CEDAR RAPIDS IA","524":"CEDAR RAPIDS IA","525":"DES MOINES IA","526":"QUAD CITIES IL","527":"QUAD CITIES IL","528":"DAVENPORT IA","530":"MILWAUKEE WI","531":"MILWAUKEE WI","532":"MILWAUKEE WI","534":"RACINE WI","535":"MADISON WI","537":"MADISON WI","538":"MADISON WI","539":"MADISON WI","540":"ST PAUL MN","541":"GREEN BAY WI","542":"GREEN BAY WI","543":"GREEN BAY WI","544":"WAUSAU WI","545":"GREEN BAY WI","546":"LA CROSSE WI","547":"EAU CLAIRE WI","548":"EAU CLAIRE WI","549":"MILWAUKEE WI","550":"ST PAUL MN","551":"ST PAUL MN","553":"MINNEAPOLIS MN","554":"MINNEAPOLIS MN","555":"MINNEAPOLIS MN","556":"DULUTH MN","557":"DULUTH MN","558":"DULUTH MN","559":"ST PAUL MN","560":"MANKATO MN","561":"MANKATO MN","562":"ST CLOUD MN","563":"ST CLOUD MN","564":"ST CLOUD MN","565":"FARGO ND","566":"BEMIDJI MN","567":"GRAND FORKS ND","570":"SIOUX FALLS SD","571":"SIOUX FALLS SD","572":"DAKOTA CENTRAL SD","573":"DAKOTA CENTRAL SD","574":"DAKOTA CENTRAL SD","575":"DAKOTA CENTRAL SD","576":"BISMARCK ND","577":"RAPID CITY SD","580":"FARGO ND","581":"FARGO ND","582":"GRAND FORKS ND","583":"GRAND FORKS ND","584":"FARGO ND","585":"BISMARCK ND","586":"BISMARCK ND","587":"MINOT ND","588":"MINOT ND","590":"BILLINGS MT","591":"BILLINGS MT","592":"BILLINGS MT","593":"BILLINGS MT","594":"GREAT FALLS MT","595":"GREAT FALLS MT","596":"GREAT FALLS MT","597":"BILLINGS MT","598":"MISSOULA MT","599":"MISSOULA MT","600":"PALATINE IL","601":"CAROL STREAM IL","602":"EVANSTON IL","603":"OAK PARK IL","604":"S SUBURBAN IL","605":"FOX VALLEY IL","606":"CHICAGO IL","607":"CHICAGO IL","608":"CHICAGO IL","609":"CHAMPAIGN IL","610":"PALATINE IL","611":"PALATINE IL","612":"QUAD CITIES IL","613":"PEORIA IL","614":"PEORIA IL","615":"PEORIA IL","616":"PEORIA IL","617":"CHAMPAIGN IL","618":"CHAMPAIGN IL","619":"CHAMPAIGN IL","620":"ST LOUIS MO","622":"ST LOUIS MO","623":"SPRINGFIELD IL","624":"CHAMPAIGN IL","625":"SPRINGFIELD IL","626":"SPRINGFIELD IL","627":"SPRINGFIELD IL","628":"ST LOUIS MO","629":"ST LOUIS MO","630":"ST LOUIS MO","631":"ST LOUIS MO","633":"ST LOUIS MO","634":"ST LOUIS MO","635":"MID-MISSOURI MO","636":"CAPE GIRARDEAU MO","637":"CAPE GIRARDEAU MO","638":"CAPE GIRARDEAU MO","639":"CAPE GIRARDEAU MO","640":"KANSAS CITY MO","641":"KANSAS CITY MO","644":"KANSAS CITY MO","645":"KANSAS CITY MO","646":"KANSAS CITY MO","647":"KANSAS CITY MO","648":"SPRINGFIELD MO","649":"KANSAS CITY MO","650":"MID-MISSOURI MO","651":"MID-MISSOURI MO","652":"MID-MISSOURI MO","653":"MID-MISSOURI MO","654":"SPRINGFIELD MO","655":"SPRINGFIELD MO","656":"SPRINGFIELD MO","657":"SPRINGFIELD MO","658":"SPRINGFIELD MO","660":"KANSAS CITY MO","661":"KANSAS CITY MO","662":"SHAWNEE MISSION KS","664":"KANSAS CITY MO","665":"KANSAS CITY MO","666":"KANSAS CITY MO","667":"KANSAS CITY MO","668":"KANSAS CITY MO","669":"SALINA KS","670":"WICHITA KS","671":"WICHITA KS","672":"WICHITA KS","673":"WICHITA KS","674":"SALINA KS","675":"WICHITA KS","676":"WICHITA KS","677":"NORTH PLATTE NE","678":"WICHITA KS","679":"AMARILLO TX","680":"OMAHA NE","681":"OMAHA NE","683":"OMAHA NE","684":"OMAHA NE","685":"OMAHA NE","686":"NORFOLK NE","687":"NORFOLK NE","688":"GRAND ISLAND NE","689":"GRAND ISLAND NE","690":"NORTH PLATTE NE","691":"NORTH PLATTE NE","692":"NORTH PLATTE NE","693":"NORTH PLATTE NE","700":"NEW ORLEANS LA","701":"NEW ORLEANS LA","703":"NEW ORLEANS LA","704":"NEW ORLEANS LA","705":"LAFAYETTE LA","706":"LAFAYETTE LA","707":"BATON ROUGE LA","708":"BATON ROUGE LA","710":"SHREVEPORT LA","711":"SHREVEPORT LA","712":"SHREVEPORT LA","713":"SHREVEPORT LA","714":"SHREVEPORT LA","716":"LITTLE ROCK AR","717":"LITTLE ROCK AR","718":"SHREVEPORT LA","719":"LITTLE ROCK AR","720":"LITTLE ROCK AR","721":"LITTLE ROCK AR","722":"LITTLE ROCK AR","723":"MEMPHIS TN","724":"MEMPHIS TN","725":"LITTLE ROCK AR","726":"NW ARKANSAS AR","727":"NW ARKANSAS AR","728":"LITTLE ROCK AR","729":"NW ARKANSAS AR","730":"OKLAHOMA CITY OK","731":"OKLAHOMA CITY OK","733":"AUSTIN TX","734":"OKLAHOMA CITY OK","735":"OKLAHOMA CITY OK","736":"OKLAHOMA CITY OK","737":"OKLAHOMA CITY OK","738":"OKLAHOMA CITY OK","739":"AMARILLO TX","740":"TULSA OK","741":"TULSA OK","743":"TULSA OK","744":"TULSA OK","745":"TULSA OK","746":"TULSA OK","747":"TULSA OK","748":"OKLAHOMA CITY OK","749":"TULSA OK","750":"NORTH TEXAS TX","751":"DALLAS TX","752":"DALLAS TX","753":"DALLAS TX","754":"NORTH TEXAS TX","755":"SHREVEPORT LA","756":"SHREVEPORT LA","757":"NORTH TEXAS TX","758":"NORTH TEXAS TX","759":"NORTH HOUSTON TX","760":"FT WORTH TX","761":"FT WORTH TX","762":"FT WORTH TX","763":"FT WORTH TX","764":"FT WORTH TX","765":"AUSTIN TX","766":"FT WORTH TX","767":"FT WORTH TX","768":"ABILENE TX","769":"ABILENE TX","770":"HOUSTON TX","772":"HOUSTON TX","773":"NORTH HOUSTON TX","774":"NORTH HOUSTON TX","775":"NORTH HOUSTON TX","776":"BEAUMONT TX","777":"BEAUMONT TX","778":"NORTH HOUSTON TX","779":"CORPUS CHRISTI TX","780":"SAN ANTONIO TX","781":"SAN ANTONIO TX","782":"SAN ANTONIO TX","783":"CORPUS CHRISTI TX","784":"CORPUS CHRISTI TX","785":"MCALLEN TX","786":"AUSTIN TX","787":"AUSTIN TX","788":"SAN ANTONIO TX","789":"AUSTIN TX","790":"AMARILLO TX","791":"AMARILLO TX","792":"AMARILLO TX","793":"LUBBOCK TX","794":"LUBBOCK TX","795":"ABILENE TX","796":"ABILENE TX","797":"MIDLAND TX","798":"EL PASO TX","799":"EL PASO TX","800":"DENVER CO","801":"DENVER CO","802":"DENVER CO","803":"BOULDER CO","804":"DENVER CO","805":"LONGMONT CO","806":"DENVER CO","807":"DENVER CO","808":"COLORADO SPGS CO","809":"COLORADO SPGS CO","810":"COLORADO SPGS CO","811":"DENVER CO","812":"DENVER CO","813":"ALBUQUERQUE NM","814":"GRAND JUNCTION CO","815":"GRAND JUNCTION CO","816":"GRAND JUNCTION CO","820":"CHEYENNE WY","821":"YELLOWSTONE NL PK WY","822":"CHEYENNE WY","823":"CHEYENNE WY","824":"CASPER WY","825":"CASPER WY","826":"CASPER WY","827":"CASPER WY","828":"CASPER WY","829":"ROCK SPRINGS WY","830":"ROCK SPRINGS WY","831":"ROCK SPRINGS WY","832":"POCATELLO ID","833":"BOISE ID","834":"POCATELLO ID","835":"SPOKANE WA","836":"BOISE ID","837":"BOISE ID","838":"SPOKANE WA","840":"SALT LAKE CTY UT","841":"SALT LAKE CTY UT","842":"SALT LAKE CTY UT","843":"SALT LAKE CTY UT","844":"OGDEN UT","845":"PROVO UT","846":"PROVO UT","847":"PROVO UT","850":"PHOENIX AZ","851":"PHOENIX AZ","852":"PHOENIX AZ","853":"PHOENIX AZ","855":"PHOENIX AZ","856":"TUCSON AZ","857":"TUCSON AZ","859":"PHOENIX AZ","860":"PHOENIX AZ","863":"PHOENIX AZ","864":"LAS VEGAS NV","865":"ALBUQUERQUE NM","870":"ALBUQUERQUE NM","871":"ALBUQUERQUE NM","873":"ALBUQUERQUE NM","874":"ALBUQUERQUE NM","875":"ALBUQUERQUE NM","876":"ALBUQUERQUE NM","877":"ALBUQUERQUE NM","878":"ALBUQUERQUE NM","879":"ALBUQUERQUE NM","880":"EL PASO TX","881":"LUBBOCK TX","882":"LUBBOCK TX","883":"EL PASO TX","884":"ALBUQUERQUE NM","885":"EL PASO TX","889":"LAS VEGAS NV","890":"LAS VEGAS NV","891":"LAS VEGAS NV","893":"LAS VEGAS NV","894":"RENO NV","895":"RENO NV","897":"CARSON CITY NV","898":"ELKO NV","900":"LOS ANGELES CA","901":"LOS ANGELES CA","902":"INGLEWOOD CA","903":"INGLEWOOD CA","904":"SANTA MONICA CA","905":"LOS ANGELES CA","906":"INDUSTRY CA","907":"LOS ANGELES CA","908":"LOS ANGELES CA","910":"PASADENA CA","911":"PASADENA CA","912":"GLENDALE CA","913":"SANTA CLARITA CA","914":"SANTA CLARITA CA","915":"SANTA CLARITA CA","916":"SANTA CLARITA CA","917":"INDUSTRY CA","918":"INDUSTRY CA","919":"SAN DIEGO CA","920":"SAN DIEGO CA","921":"SAN DIEGO CA","922":"SN BERNARDINO CA","923":"SN BERNARDINO CA","924":"SN BERNARDINO CA","925":"SN BERNARDINO CA","926":"SANTA ANA CA","927":"SANTA ANA CA","928":"ANAHEIM CA","930":"SANTA BARBARA CA","931":"SANTA BARBARA CA","932":"BAKERSFIELD CA","933":"BAKERSFIELD CA","934":"SANTA BARBARA CA","935":"BAKERSFIELD CA","936":"FRESNO CA","937":"FRESNO CA","938":"FRESNO CA","939":"SALINAS CA","940":"SAN FRANCISCO CA","941":"SAN FRANCISCO CA","942":"SACRAMENTO CA","943":"PALO ALTO CA","944":"SAN MATEO CA","945":"OAKLAND CA","946":"OAKLAND CA","947":"BERKELEY CA","948":"RICHMOND CA","949":"NORTH BAY CA","950":"SAN JOSE CA","951":"SAN JOSE CA","952":"STOCKTON CA","953":"STOCKTON CA","954":"NORTH BAY CA","955":"EUREKA CA","956":"SACRAMENTO CA","957":"SACRAMENTO CA","958":"SACRAMENTO CA","959":"SACRAMENTO CA","960":"REDDING CA","961":"RENO NV","962":"APO/FPO AP","963":"APO/FPO AP","964":"APO/FPO AP","965":"APO/FPO AP","966":"APO/FPO AP","967":"HONOLULU HI","968":"HONOLULU HI","969":"BARRIGADA GU","970":"PORTLAND OR","971":"PORTLAND OR","972":"PORTLAND OR","973":"PORTLAND OR","974":"EUGENE OR","975":"MEDFORD OR","976":"MEDFORD OR","977":"BEND OR","978":"PENDLETON OR","979":"BOISE ID","980":"SEATTLE WA","981":"SEATTLE WA","982":"SEATTLE WA","983":"TACOMA WA","984":"TACOMA WA","985":"TACOMA WA","986":"PORTLAND OR","988":"WENATCHEE WA","989":"YAKIMA WA","990":"SPOKANE WA","991":"SPOKANE WA","992":"SPOKANE WA","993":"SPOKANE WA","994":"SPOKANE WA","995":"ANCHORAGE AK","996":"ANCHORAGE AK","997":"FAIRBANKS AK","998":"JUNEAU AK","999":"KETCHIKAN AK","005":"MID-ISLAND NY","006":"SAN JUAN PR","007":"SAN JUAN PR","008":"SAN JUAN PR","009":"SAN JUAN PR","010":"HARTFORD CT","011":"HARTFORD CT","012":"HARTFORD CT","013":"CENTRAL MA","014":"CENTRAL MA","015":"CENTRAL MA","016":"WORCESTER MA","017":"CENTRAL MA","018":"MIDDLESEX-ESX MA","019":"MIDDLESEX-ESX MA","020":"BROCKTON MA","021":"BOSTON MA","022":"BOSTON MA","023":"BROCKTON MA","024":"NORTHWEST BOS MA","025":"PROVIDENCE RI","026":"PROVIDENCE RI","027":"PROVIDENCE RI","028":"PROVIDENCE RI","029":"PROVIDENCE RI","030":"MANCHESTER NH","031":"MANCHESTER NH","032":"MANCHESTER NH","033":"CONCORD NH","034":"MANCHESTER NH","035":"WHITE RIV JCT VT","036":"WHITE RIV JCT VT","037":"WHITE RIV JCT VT","038":"MANCHESTER NH","039":"SOUTHERN ME","040":"SOUTHERN ME","041":"SOUTHERN ME","042":"SOUTHERN ME","043":"SOUTHERN ME","044":"EASTERN ME","045":"SOUTHERN ME","046":"EASTERN ME","047":"EASTERN ME","048":"SOUTHERN ME","049":"EASTERN ME","050":"WHITE RIV JCT VT","051":"WHITE RIV JCT VT","052":"WHITE RIV JCT VT","053":"WHITE RIV JCT VT","054":"BURLINGTON VT","055":"MIDDLESEX-ESX MA","056":"BURLINGTON VT","057":"WHITE RIV JCT VT","058":"WHITE RIV JCT VT","059":"WHITE RIV JCT VT","060":"HARTFORD CT","061":"HARTFORD CT","062":"HARTFORD CT","063":"HARTFORD CT","064":"HARTFORD CT","065":"HARTFORD CT","066":"WESTCHESTER NY","067":"HARTFORD CT","068":"WESTCHESTER NY","069":"WESTCHESTER NY","070":"DV DANIELS NJ","071":"NEWARK NJ","072":"ELIZABETH NJ","073":"JERSEY CITY NJ","074":"NNJ METRO NJ","075":"NNJ METRO NJ","076":"NNJ METRO NJ","077":"TRENTON NJ","078":"NNJ METRO NJ","079":"DV DANIELS NJ","080":"SOUTH JERSEY NJ","081":"CAMDEN NJ","082":"SOUTH JERSEY NJ","083":"SOUTH JERSEY NJ","084":"ATLANTIC CITY NJ","085":"TRENTON NJ","086":"TRENTON NJ","087":"TRENTON NJ","088":"DV DANIELS NJ","089":"DV DANIELS NJ","090":"APO AE","091":"APO AE","092":"APO AE","093":"APO AE","094":"APO/FPO AE","095":"FPO AE","096":"APO/FPO AE","097":"APO/FPO AE","098":"APO/FPO AE"}'
+		);
+	return zip3obj[zip3];
+}
+
+
 function doLoanDetail()
 {
 var DEBUG = debug(false, arguments);
@@ -2150,18 +2161,43 @@ var DEBUG = debug(false, arguments);
 	var loanId = $(".memberHeader").html().match(/Borrower Member Loan\s(\d+)/)[1];
 	DEBUG && GM_log("loanId=", loanId);
 	
+	if(true)	// zipcode prefix (first 3 digits)
+	{
 	var locationTD = $("th:contains('Location') + td");
 	var location = locationTD.text();
 	DEBUG && GM_log("location=", location);
 
-	var employerTD = $("th:contains('Current Employer') + td");
-	var employer = employerTD.text();
-	DEBUG && GM_log("employer=", employer);
+	var zip3 = location.substr(0,3);	// first 3 digits
+
+	var locationurl = sprintf("http://maps.huge.info/zip3.htm?zip3=%s", zip3);
+	DEBUG && GM_log("locationurl=", locationurl);
+
+	var zip3location = getZip3(zip3);
+	GM_log("zip3location=" + zip3location);
+
+	locationTD.append(' ' + zip3location);
+	
+	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
+	}
+
+	
+	if(false)	// changed to zipcode prefix (first 3 digits)
+	{
+	var locationTD = $("th:contains('Location') + td");
+	var location = locationTD.text();
+	DEBUG && GM_log("location=", location);
 
 	var locationurl = sprintf("https://maps.google.com/maps?hl=en&q=%s&t=m&z=7", encodeURIComponent(location));
 	DEBUG && GM_log("locationurl=", locationurl);
 	
 	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
+	}
+
+	if(false)	// what would we do with it?
+	{
+	var employerTD = $("th:contains('Current Employer') + td");
+	var employer = employerTD.text();
+	DEBUG && GM_log("employer=", employer);
 
 	var employerurl =
 		employer == "n/a"
@@ -2171,6 +2207,7 @@ var DEBUG = debug(false, arguments);
 
 	if(employerurl)
 		employerTD.wrapInner(sprintf("<a href='%s' />", employerurl));
+	}
 
 	var comment = getComment(loanId);
 
@@ -2431,7 +2468,7 @@ var storedData;
 var expireOldData = true;
 function loadStoredData()
 {
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	DEBUG && timestamp(FUNCNAME, true);
 
 	if(storedData == null)
@@ -2613,34 +2650,34 @@ function saveStoredData()
 	}
 }
 
-function convertStoredData()
-{
-var DEBUG = debug(arguments, true);
-
-	GM_log("typeof RawDeflate.deflate=", typeof RawDeflate.deflate);
-
-	var noteDataJSON = localStorage.getItem('noteData');
-	if(noteDataJSON)
-	{
-		DEBUG && GM_log(DEBUG + " noteDataJSON.length=" + noteDataJSON.length + " noteDataJSON=" + noteDataJSON.substr(0,1024) + "...");
-
-		var noteDataJSONZIP = RawDeflate.deflate(noteDataJSON);
-		localStorage.removeItem('noteData');
-		localStorage.setItem('noteDataZIP', noteDataJSONZIP);
-	}
-
-	var loanDataJSON = localStorage.getItem('loanData');
-	if(loanDataJSON)
-	{
-		DEBUG && GM_log(DEBUG + " loanDataJSON.length=" + loanDataJSON.length + " loanDataJSON=" + loanDataJSON.substr(0,1024) + "...");
-
-		var loanDataJSONZIP = RawDeflate.deflate(loanDataJSON);
-		localStorage.removeItem('loanData');
-		localStorage.setItem('loanDataZIP', loanDataJSONZIP);
-	}
-}
-
-convertStoredData();
+//convertStoredData();
+//
+//function convertStoredData()
+//{
+//var DEBUG = debug(arguments, true);
+//
+//	GM_log("typeof RawDeflate.deflate=", typeof RawDeflate.deflate);
+//
+//	var noteDataJSON = localStorage.getItem('noteData');
+//	if(noteDataJSON)
+//	{
+//		DEBUG && GM_log(DEBUG + " noteDataJSON.length=" + noteDataJSON.length + " noteDataJSON=" + noteDataJSON.substr(0,1024) + "...");
+//
+//		var noteDataJSONZIP = RawDeflate.deflate(noteDataJSON);
+//		localStorage.removeItem('noteData');
+//		localStorage.setItem('noteDataZIP', noteDataJSONZIP);
+//	}
+//
+//	var loanDataJSON = localStorage.getItem('loanData');
+//	if(loanDataJSON)
+//	{
+//		DEBUG && GM_log(DEBUG + " loanDataJSON.length=" + loanDataJSON.length + " loanDataJSON=" + loanDataJSON.substr(0,1024) + "...");
+//
+//		var loanDataJSONZIP = RawDeflate.deflate(loanDataJSON);
+//		localStorage.removeItem('loanData');
+//		localStorage.setItem('loanDataZIP', loanDataJSONZIP);
+//	}
+//}
 
 function saveStoredData0()
 {
@@ -3265,7 +3302,7 @@ var DEBUG = debug(false, arguments);
 
 	if(!highlightLoanPerfBAD)
 	{
-		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|engaged with debt consolidator|skip trace|mail.*letter)", "gi");
+		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|engaged with debt consolidator|skip trace|mail.*letter)", "gi");
 		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|payment failed|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan)", "gi");
 	}
 
@@ -3309,6 +3346,9 @@ var DEBUG = debug(false, arguments);
 	if(html.match(/(chapter[\s\d]*bankruptcy)/i))
 		warning += '/' + RegExp.$1;
 	else if(html.match(/(Bankruptcy\s*counsel)/i))
+		warning += '/' + RegExp.$1;
+
+	if(html.match(/(Payment Solutions specialist)/i))
 		warning += '/' + RegExp.$1;
 
 	if(html.match(/(external collections)/i))
@@ -5206,7 +5246,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	tradeableDiv.find("table th:contains('(')")
 		.each(function(index, element)
 		{
-			var text = jQ(element).text();
+			var text = $(element).text();
 			GM_log("text=" + text);
 
 			// e.g. "Issued & Current (2,724)"
@@ -5480,36 +5520,45 @@ var scanDelay, scanDelayBackoff;
 
 GM_addStyle(".yui-dt-col-NoteStatus {white-space:nowrap;}");
 
+function setupfourclick()
+{
+	var DEBUG = debug(true, arguments);
+
+	/* from http://css-tricks.com/snippets/jquery/triple-click-event/ */
+	$.event.special.fourclick = {
+
+		setup: function(data, namespaces) {
+			var elem = this, $elem = jQuery(elem);
+			$elem.bind('click', jQuery.event.special.fourclick.handler);
+		},
+
+		teardown: function(namespaces) {
+			var elem = this, $elem = jQuery(elem);
+			$elem.unbind('click', jQuery.event.special.fourclick.handler)
+		},
+
+		handler: function(event) {
+			var elem = this, $elem = jQuery(elem), clicks = $elem.data('clicks') || 0;
+			clicks += 1;
+			if ( clicks === 4 ) {
+				clicks = 0;
+
+				// set event type to "fourclick"
+				event.type = "fourclick";
+				
+				// let jQuery handle the triggering of "fourclick" event handlers
+				jQuery.event.handle.apply(this, arguments)  
+			}
+			$elem.data('clicks', clicks);
+		}
+	};
+}
+
 function doitReady()
 {
-/* from http://css-tricks.com/snippets/jquery/triple-click-event/ */
-$.event.special.fourclick = {
+	var DEBUG = debug(true, arguments);
 
-    setup: function(data, namespaces) {
-        var elem = this, $elem = jQuery(elem);
-        $elem.bind('click', jQuery.event.special.fourclick.handler);
-    },
-
-    teardown: function(namespaces) {
-        var elem = this, $elem = jQuery(elem);
-        $elem.unbind('click', jQuery.event.special.fourclick.handler)
-    },
-
-    handler: function(event) {
-        var elem = this, $elem = jQuery(elem), clicks = $elem.data('clicks') || 0;
-        clicks += 1;
-        if ( clicks === 4 ) {
-            clicks = 0;
-
-            // set event type to "fourclick"
-            event.type = "fourclick";
-            
-            // let jQuery handle the triggering of "fourclick" event handlers
-            jQuery.event.handle.apply(this, arguments)  
-        }
-        $elem.data('clicks', clicks);
-    }
-};
+	setupfourclick();
 	
 //	"use strict";	// ewl 2012-12-02
 var DEBUG = debug(true, arguments);
@@ -7131,6 +7180,7 @@ var DEBUG = debug(true, arguments);
 
 
 	var href = location.href;
+	GM_log("href=" + href);
 	if(href.match(/public\/about-us.action/))	// repurpose this page for our exports
 	{
 		if(window.name == 'LCAC_exportLocalStorage')
@@ -10704,8 +10754,11 @@ function monthDiff(d1, d2) {
     return months <= 0 ? 0 : months;
 }
 
+
 function doitReadyTryCatch()
 {
+	var DEBUG = debug(true, arguments);
+
 	try
 	{
 		doitReady();
@@ -10717,4 +10770,3 @@ function doitReadyTryCatch()
 }
 			
 $(document).ready(doitReadyTryCatch);
-
