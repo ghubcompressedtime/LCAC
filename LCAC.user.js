@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.210
+// @version        3.212
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -142,8 +142,13 @@ GM_log("CANCELEDHIDE=", CANCELEDHIDE);
 var SAVEDSEARCHES = GM_getValue("SAVEDSEARCHES", true);
 GM_log("SAVEDSEARCHES=", SAVEDSEARCHES);
 
-var SELLORDERLINKONLOANPERF = GM_getValue("SELLORDERLINKONLOANPERF", TESTING);
+//GM_setValue("SELLORDERLINKONLOANPERFENABLED", false);	// for testing
+
+var SELLORDERLINKONLOANPERF = GM_getValue("SELLORDERLINKONLOANPERF", true);
 GM_log("SELLORDERLINKONLOANPERF=", SELLORDERLINKONLOANPERF);
+var SELLORDERLINKONLOANPERFENABLED = GM_getValue("SELLORDERLINKONLOANPERFENABLED", false);	// user must enable
+GM_log("SELLORDERLINKONLOANPERFENABLED=", SELLORDERLINKONLOANPERFENABLED);
+
 var AUTOSELLSELECT = GM_getValue("AUTOSELLSELECT", TESTING);
 GM_log("AUTOSELLSELECT=", AUTOSELLSELECT);
 
@@ -1917,16 +1922,48 @@ var DEBUG = debug(false, arguments);
 		
 	var inProcessing = find("table#lcLoanPerfTable1 tr:contains(Processing...)");
 
-//	alert("isNoteOwned(" + vars.noteId + ")=" + isNoteOwned(vars.noteId));
 	if(SELLORDERLINKONLOANPERF)
 	if(isNoteOwned(vars.noteId) && !vars.status.match(/Default/) && !inProcessing)
 	{
-		$(":header:contains('Loan Summary') + table tbody")
-			.append(
-				sprintf("<tr><td colspan=2><label>Add to Sell Order <input type='checkbox' id='lcac_togglesale' name='%s' /></label> <a href='https://www.lendingclub.com/foliofn/selectLoansForSale.action'>View Sell Order</a></td>", vars.noteId)
-			)
-		
-		$("#lcac_togglesale")
+		var target = $(":header:contains('Loan Summary') + table tbody")
+		target.append(
+			sprintf("<tr><td colspan=2>"
+			+ "<span class=lcac_togglesale_enable style='display:none'><button>Enable Add to Sell Order checkbox (experimental)</button></span>"
+			+ "<span class=lcac_togglesale style='display:none'><label>Add to Sell Order <input type='checkbox' id='lcac_togglesale' name='%s' /></label> <a href='https://www.lendingclub.com/foliofn/selectLoansForSale.action'>View Sell Order</a></span>"
+			+ "</td></tr>"
+				, vars.noteId)
+		);
+
+		var lcac_togglesale_enable = $(".lcac_togglesale_enable", target);
+		var lcac_togglesale = $("#lcac_togglesale", target);
+		GM_log("lcac_togglesale_enable=", lcac_togglesale);
+		GM_log("lcac_togglesale=", lcac_togglesale);
+
+		var span_lcac_togglesale_enable = $("span.lcac_togglesale_enable", target);
+		var span_lcac_togglesale = $("span.lcac_togglesale", target);
+		GM_log("span_lcac_togglesale_enable=", span_lcac_togglesale);
+		GM_log("span_lcac_togglesale=", span_lcac_togglesale);
+
+		if(SELLORDERLINKONLOANPERFENABLED)
+		{
+			GM_log("showing span_lcac_togglesale");
+			span_lcac_togglesale.css('display', 'inline');
+		}
+		else
+		{
+			GM_log("showing span_lcac_togglesale_enable");
+			span_lcac_togglesale_enable
+				.css('display', 'inline')
+				.click(function()
+				{
+					span_lcac_togglesale_enable.css('display', 'none');
+					span_lcac_togglesale.css('display', 'inline');
+					GM_setValue("SELLORDERLINKONLOANPERFENABLED", true);
+				});
+		}
+
+
+		lcac_togglesale
 			.on('change', function(event)
 			{
 				var noteId = $(this).prop('name');
@@ -1935,12 +1972,39 @@ var DEBUG = debug(false, arguments);
 				ffnAddToSellOrder(noteId, checked,
 					function ffnAddToSellOrder_post_success(data, textStatus, jqXHR)
 					{
-						GM_log("ffnAddToSellOrder_post_success() data=", data);
-						if(data.result != 'success')
+						var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+						GM_log(FUNCNAME + " data=", data);
+						GM_log(FUNCNAME + " typeof data=" + typeof data);
+
+						if(typeof data == 'string')
 						{
-							alert("result=" + data.result + " selectedNoteCount=" + data.selectedNoteCount + " You may need to open a Sell Notes window first.");
-							$("#lcac_togglesale").prop('checked', !checked);
+							if(data.match(/You've been logged out/))
+							{
+								alert("Not logged in");
+								lcac_togglesale.prop('checked', false);
+								return;
+							}
 						}
+						else if(typeof data != 'object')
+						{
+							alert(FUNCNAME + " unhandled typeof data=" + typeof data);
+							return;
+						}
+						
+						if(data.result == 'success')
+							return;
+
+						//assert data is an object
+//						alert("result=" + data.result + " selectedNoteCount=" + data.selectedNoteCount + " You might need to open a Foliofn Sell Notes window first");
+						var result = confirm("result=" + data.result + " selectedNoteCount=" + data.selectedNoteCount + " You might need to open a Foliofn Sell Notes window first. Open one now?");
+						if(result)
+							window.open("https://www.lendingclub.com/foliofn/sellNotes.action", "LCAC_sellNotes");
+
+						if(typeof data.checked != 'undefined')	// sell page not open?
+							lcac_togglesale.prop('checked', !checked);	// revert checkbox state
+						else	// some other error
+							lcac_togglesale.prop('checked', false);
 					});
 			});
 	}
@@ -2009,15 +2073,17 @@ var DEBUG = debug(false, arguments);
 			var forsalehtml2 =
 				sprintf("<tr><td colspan=2><label><span id='lcac_togglepurchase_label'>Add to Buy Order </span><input type='checkbox' id='lcac_togglepurchase' data-note_id='%s' data-loan_id='%s' /></label> <a href='/foliofn/cart.action'>View Buy Order</a></td>", vars.noteId, vars.loanId);
 		
-			$(":header:contains('Loan Summary') + table tbody")
+			var target = $(":header:contains('Loan Summary') + table tbody");
+			target
 				.append(forsalehtml2);
 
-			var lcac_togglepurchase_label_origtext = $("#lcac_togglepurchase_label").text();
+			var lcac_togglepurchase_label = $("#lcac_togglepurchase_label", target);
+			var lcac_togglepurchase_label_origtext = lcac_togglepurchase_label.text();
 
 			if(vars.in_cart)
-				$("#lcac_togglepurchase").prop('checked', true);
+				lcac_togglepurchase.prop('checked', true);
 
-			$("#lcac_togglepurchase")
+			lcac_togglepurchase
 				.on('change', function(event)
 				{
 					var noteId = $(this).attr('data-note_id');
@@ -2026,15 +2092,15 @@ var DEBUG = debug(false, arguments);
 
 					function resetLabel()
 					{
-						$("#lcac_togglepurchase_label")
+						lcac_togglepurchase_label
 							.text(lcac_togglepurchase_label_origtext);
-						$("#lcac_togglepurchase")
+						lcac_togglepurchase
 							.prop('disabled', false);
 					}
 
-					$("#lcac_togglepurchase_label")
+					lcac_togglepurchase_label
 						.text('Please wait...');
-					$("#lcac_togglepurchase")
+					lcac_togglepurchase
 						.prop('disabled', true);
 
 					if(checked)
@@ -4071,12 +4137,35 @@ function ffnAddToCart2(checked, callback)
 			
 function ffnAddToSellOrder(noteId, checked, callback)
 {
+var DEBUG = debug(true, arguments);
+
 	var url = "/foliofn/updateLoanCheckBoxAj.action";
-	var params = sprintf("note_id=%s&remove=%s&namespace=/foliofn", noteId, checked ? 'false' : 'true');
+
+	/*
+	 * 2014-12-21, e.g: random=asdf&json=[{"noteId":3108074,"remove":false}]
+	 */
+
+	var obj = {
+		noteId: noteId,
+		remove: !checked
+	};
+	DEBUG && GM_log("obj=", obj);
+	obj = [obj];	//they want an array of objects
+
+	var json = JSON.stringify(obj);
+	DEBUG && GM_log("json=" + json);
+
+	var params = sprintf("random=%s&json=%s", "asdf", json);
 				
 	GM_log("url=" + url + " params=" + params);
 
-	$.post(url, params, callback);
+	$.post(url, params,
+		function post_callback(data, textStatus, jqXHR)
+		{
+			GM_log("post_callback() data=", data, " textStatus=" + textStatus + " jqXHR=", jqXHR);
+
+			callback(data, textStatus, jqXHR);
+		});
 }
 
 function allowMiddleClickToWorkAgain(notesTable)
@@ -4340,16 +4429,16 @@ function checkCells0(notesTable, colorCellsFunc, tableCanChange,
 	addDeleteRowButton,
 	addNoteIdColumn)
 {
-var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	attachLocalStorageCommentListener();
 
 	var tbody = notesTable.find("tbody:last");
 	var tbody0 = tbody.get(0);
-	GM_log("tbody0=", tbody0);
+	DEBUG && GM_log("tbody0=", tbody0);
 
 	var trFirst = tbody.find("tr:first");
-	GM_log("trFirst=", trFirst);
+	DEBUG && GM_log("trFirst=", trFirst);
 
 	/*
 	 * set a flag on the first row
@@ -4384,7 +4473,7 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	}
 
 	/* loop (if table can change) */
-	GM_log("tableCanChange=", tableCanChange);
+	DEBUG && GM_log("tableCanChange=", tableCanChange);
 	if(tableCanChange)
 	{
 		setTimeout(
