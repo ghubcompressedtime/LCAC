@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.216
+// @version        3.217
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -133,7 +133,7 @@ var TRADINGINVETORYPARAMS = GM_getValue("TRADINGINVETORYPARAMS", true);
 GM_log("TRADINGINVETORYPARAMS=", TRADINGINVETORYPARAMS);
 var AUTOFOLLOWLINK = GM_getValue("AUTOFOLLOWLINK", TESTING);
 GM_log("AUTOFOLLOWLINK=", AUTOFOLLOWLINK);
-var BUYORDERLINKONLOANPERF = GM_getValue("BUYORDERLINKONLOANPERF", TESTING);
+var BUYORDERLINKONLOANPERF = GM_getValue("BUYORDERLINKONLOANPERF", true);
 GM_log("BUYORDERLINKONLOANPERF=", BUYORDERLINKONLOANPERF);
 var PRICESINURL = GM_getValue("PRICESINURL", true);
 GM_log("PRICESINURL=", PRICESINURL);
