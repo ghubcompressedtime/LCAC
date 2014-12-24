@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.214
+// @version        3.216
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -2106,10 +2106,16 @@ var DEBUG = debug(false, arguments);
 					lcac_togglepurchase
 						.prop('disabled', true);
 
-					if(checked)
-						ffnAddToCart(noteId, checked, resetLabel);
-					else
-						ffnRemoveFromCart(loanId, noteId, resetLabel);
+					(function(noteId, checked)
+					{
+						setTimeout(function()
+						{
+							if(checked)
+								ffnAddToCart(noteId, checked, resetLabel);
+							else
+								ffnRemoveFromCart(loanId, noteId, resetLabel);
+						}, 0);
+					})(noteId, checked);
 				});
 		}
 	}
@@ -4110,8 +4116,8 @@ function ffnAddToCart(noteId, checked, callback)
  */
 	var url = "/foliofn/noteAj.action";
 	var params =
-//		sprintf("s=%s&ps=1&ni=%d&rnd=%d",
-		sprintf("s=%s&si=46&ps=1&ni=%d&rnd=%d",
+//		sprintf("s=%s&si=46&ps=1&ni=%d&rnd=%d",
+		sprintf("s=%s&ps=1&ni=%d&rnd=%d",
 			checked ? 'true' : 'false',
 			noteId,
 			new Date().getTime() * 1000);
@@ -4119,11 +4125,8 @@ function ffnAddToCart(noteId, checked, callback)
 	$.get(url, params, function ffnAddToCart_get_success(data, textStatus, jqXHR)
 	{
 		GM_log("ffnAddToCart_get_success() data=", data);
-		//XXX data.selectNoteResult always equals 0? what's the point?
-		if(!data.completionSuccess)
-		{
-			alert("checked=" + checked + " data=" + data ? JSON.stringify(data) : data);
-		}
+		// data.selectNoteResult always equals 0? what's the point?
+
 		ffnAddToCart2(checked, callback);
 	});
 }
@@ -4138,7 +4141,7 @@ function ffnAddToCart2(checked, callback)
 		sprintf("rnd=%d",
 			new Date().getTime() * 1000);
 
-	$.post(url, params, function ffnAddToCart2_get_success(data, textStatus, jqXHR)
+	$.get(url, params, function ffnAddToCart2_get_success(data, textStatus, jqXHR)
 	{
 		GM_log("ffnAddToCart2_get_success() data=", data);
 		if(checked && data.cartSize == 0)	// if we checked one the cartSize should be > 0
