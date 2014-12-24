@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.212
+// @version        3.214
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -133,7 +133,7 @@ var TRADINGINVETORYPARAMS = GM_getValue("TRADINGINVETORYPARAMS", true);
 GM_log("TRADINGINVETORYPARAMS=", TRADINGINVETORYPARAMS);
 var AUTOFOLLOWLINK = GM_getValue("AUTOFOLLOWLINK", TESTING);
 GM_log("AUTOFOLLOWLINK=", AUTOFOLLOWLINK);
-var BUYORDERLINKONLOANPERF = GM_getValue("BUYORDERLINKONLOANPERF", true);
+var BUYORDERLINKONLOANPERF = GM_getValue("BUYORDERLINKONLOANPERF", TESTING);
 GM_log("BUYORDERLINKONLOANPERF=", BUYORDERLINKONLOANPERF);
 var PRICESINURL = GM_getValue("PRICESINURL", true);
 GM_log("PRICESINURL=", PRICESINURL);
@@ -2077,7 +2077,10 @@ var DEBUG = debug(false, arguments);
 			target
 				.append(forsalehtml2);
 
+			var lcac_togglepurchase = $("#lcac_togglepurchase", target);
+			GM_log("lcac_togglepurchase=", lcac_togglepurchase);
 			var lcac_togglepurchase_label = $("#lcac_togglepurchase_label", target);
+			GM_log("lcac_togglepurchase_label=", lcac_togglepurchase_label);
 			var lcac_togglepurchase_label_origtext = lcac_togglepurchase_label.text();
 
 			if(vars.in_cart)
@@ -4091,23 +4094,36 @@ function ffnRemoveFromCart(loanId, noteId, callback)
 	});
 }
 
+/*
+ * a 2 step process:
+ * 1. add the note to the cart
+ * 2. add the cart to the order
+ */
 function ffnAddToCart(noteId, checked, callback)
 {
 /*
  * e.g. /foliofn/noteAj.action?s=true&si=32&ps=1&ni=5356035&rnd=1390428779802
- * si is unnecessary? something to do with page number
+ * si is row number in the list, starting at 0. unnecessary
+ * rnd looks like milliseconds since unix epoch
+ * ps is always 1
+ * 2014-12-23 no longer working, what did they change?
  */
 	var url = "/foliofn/noteAj.action";
 	var params =
-		sprintf("s=%s&ps=1&ni=%d&rnd=%d",
+//		sprintf("s=%s&ps=1&ni=%d&rnd=%d",
+		sprintf("s=%s&si=46&ps=1&ni=%d&rnd=%d",
 			checked ? 'true' : 'false',
 			noteId,
-			new Date().getTime());
+			new Date().getTime() * 1000);
 
-	$.post(url, params, function ffnAddToCart_get_success(data, textStatus, jqXHR)
+	$.get(url, params, function ffnAddToCart_get_success(data, textStatus, jqXHR)
 	{
 		GM_log("ffnAddToCart_get_success() data=", data);
 		//XXX data.selectNoteResult always equals 0? what's the point?
+		if(!data.completionSuccess)
+		{
+			alert("checked=" + checked + " data=" + data ? JSON.stringify(data) : data);
+		}
 		ffnAddToCart2(checked, callback);
 	});
 }
@@ -4120,14 +4136,14 @@ function ffnAddToCart2(checked, callback)
 	var url = "/foliofn/addToCartAj.action";
 	var params =
 		sprintf("rnd=%d",
-			new Date().getTime());
+			new Date().getTime() * 1000);
 
 	$.post(url, params, function ffnAddToCart2_get_success(data, textStatus, jqXHR)
 	{
 		GM_log("ffnAddToCart2_get_success() data=", data);
-		if(checked && data.finalCartSize == 0)	// if we checked one the finalCartSize should be > 0
+		if(checked && data.cartSize == 0)	// if we checked one the cartSize should be > 0
 		{
-			alert("checked=" + checked + " data.finalCartSize=" + data.finalCartSize);
+			alert("checked=" + checked + " data=" + data ? JSON.stringify(data) : data);
 		}
 
 		callback();
