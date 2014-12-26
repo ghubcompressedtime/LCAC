@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.217
+// @version        3.218
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -5340,7 +5340,7 @@ function capitaliseFirstLetter(string, tolowercase)
 }
 
 
-function parseAccountDetail(innerHTML)
+function parse_lenderAccountDetail(innerHTML)
 {
 var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
@@ -5352,20 +5352,30 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	var tradeableDiv = dom.find("div#account-details2");
 
 	tradeableDiv.find("table th:contains('(')")
-		.each(function(index, element)
+		.each(function tradeableDiv_each(index, element)
 		{
+		var FUNCNAME = funcname(arguments);
+
 			var text = $(element).text();
-			GM_log("text=" + text);
+			GM_log(FUNCNAME + " text=" + text);
 
 			// e.g. "Issued & Current (2,724)"
+			/*
+			 * "Adjust account value and returns for past-due Notes" on Summary Page changes this page
+			 * special characters and adds a third column Adjusted Principal Value, e.g.
+			 * In Grace Period† (33)	$415.01	$319.56
+			 * Charged Off* (376)	$7,358.46	$7,358.46
+			 */
 			text = text
 				.replace('&', 'And')
 				.replace('-', 'To')
 				.replace('days', 'Days')
-				.replace(/[\*),\s]/g, '')
+				.replace(/[^A-Za-z0-9,()]/g, '')	
+				.replace(/\s/g, '')
+			;
 
-			var split = text.split('(');	
-			GM_log("split=" + split);
+			var split = text.split(/[()]/);	
+			GM_log(FUNCNAME + " split=", split);
 
 			var id = split[0] + "_count";
 			var value = split[1];
@@ -7089,73 +7099,16 @@ var DEBUG = debug(true, arguments);
 		});
 	}
 
-	function parseAccountSummary(reseponseText)
-	{
-	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
-
-		try
-		{
-			var totalPayments = reseponseText.match(/Total Payments[\s\S]*?(\$[\d,.]+)/);
-			GM_log("totalPayments=" + totalPayments);
-			if(totalPayments) totalPayments = totalPayments[1];
-			GM_log("totalPayments=" + totalPayments);
-
-			var totalPaymentsHTML = reseponseText.match(/Total Payments[\s\S]*?\$[\d,.]+/);
-			GM_log("totalPaymentsHTML=" + totalPaymentsHTML);
-
-//			var accountTotal = reseponseText.match(/Account Total[\s\S]*?(\$[\d,.]+)/);
-			var accountValue = reseponseText.match(/>Account Value[\s\S]*?(\$[\d,.]+)/);
-			GM_log("accountValue=" + accountValue);
-			if(accountValue) accountValue = accountValue[1];
-			GM_log("accountValue=" + accountValue);
-
-//			var accruedInterest = reseponseText.match(/Accrued Interest[\s\S]*?(\$[\d,.]+)/);
-//			GM_log("accruedInterest=" + accruedInterest);
-//			if(accruedInterest) accruedInterest = accruedInterest[1];	//XXX 2013-10-09 accrued interest removed from summary page?
-//			GM_log("accruedInterest=" + accruedInterest);
-
-			var availableCash = reseponseText.match(/Available Cash[\s\S]*?(\$[\d,.]+)/);
-			GM_log("availableCash=" + availableCash);
-			if(availableCash) availableCash = availableCash[1];
-			GM_log("availableCash=" + availableCash);
-
-			var availableCashHTML = reseponseText.match(/(Available Cash[\s\S]*?\$[\d,.]+)/);
-			GM_log("availableCashHTML=" + availableCashHTML);
-			if(availableCashHTML) availableCashHTML = availableCashHTML[1];
-			GM_log("availableCashHTML=" + availableCashHTML);
-
-			var interestReceived = reseponseText.match(/Interest Received[\s\S]*?(\$[\d,.]+)/);
-			GM_log("interestReceived=" + interestReceived);
-			if(interestReceived) interestReceived = interestReceived[1];
-			GM_log("interestReceived=" + interestReceived);
-
-			return {
-				totalPayments: totalPayments,
-				totalPaymentsHTML: totalPaymentsHTML,
-				accountValue: accountValue,
-//				accruedInterest: accruedInterest,
-				availableCash: availableCash,
-				availableCashHTML: availableCashHTML,
-				interestReceived: interestReceived,
-			};
-		}
-		catch(ex)
-		{
-			GM_log(FUNCNAME + " ex=", ex, " ", ex.stack);
-			GM_log(FUNCNAME + " responseText=" + responseText);
-			return null;
-		}
-	}
-
 	function getAccountSummary(callback)
 	{
-	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
-//		var requestURL = "/account/summary.action";
 		var requestURL = "/account/lenderAccountDetail.action";
 
 		$.get(requestURL, function getAccountSummary_get(responseText, textStatus, jqXHR) 	// success
 		{
+			var FUNCNAME = funcname(arguments);
+
 			if(responseText.match(/Member Sign-In/))		// we've been logged out
 			{
 				/* XXX alert the user */
@@ -7163,13 +7116,12 @@ var DEBUG = debug(true, arguments);
 				return;
 			}
 			
-			GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
+			DEBUG && GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
 			responseText = responseText.replace(/^[\s\S]*?(<body)/, "$1");	//YYY jquery 1.9.1 chokes on DOCTYPE line?
-			GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
+			DEBUG && GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
 
-//			var summary = parseAccountSummary(responseText);
-			var summary = parseAccountDetail(responseText);
-			GM_log(FUNCNAME + "_get() summary=", summary);
+			var summary = parse_lenderAccountDetail(responseText);
+			DEBUG && GM_log(FUNCNAME + "_get() summary=", summary);
 
 			callback(summary);
 		})
@@ -7182,14 +7134,16 @@ var DEBUG = debug(true, arguments);
 		});
 	}
 
-	function getFoliofn(getFoliofn_callback)
+	function getFoliofnSummary(getFoliofnSummary_callback)
 	{
 	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 		var requestURL = "/foliofn/tradingAccount.action";	// html
 
-		$.get(requestURL, function getFoliofn_get(responseText) 	// success
+		$.get(requestURL, function getFoliofnSummary_get(responseText) 	// success
 		{
+			var FUNCNAME = funcname(arguments);
+
 			GM_log(FUNCNAME + " responseText.length=" + responseText.length);
 			DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0, 1024) + "...");
 
@@ -7200,7 +7154,7 @@ var DEBUG = debug(true, arguments);
 			if(responseText.match(/Member Sign-In/))		// we've been logged out
 			{
 				alert("Not logged in");
-				getFoliofn_callback(null);
+				getFoliofnSummary_callback(null);
 				return;
 			}
 
@@ -7223,12 +7177,12 @@ var DEBUG = debug(true, arguments);
 				soldPendingNoteIds: soldPendingNoteIds,
 				});
 
-			getFoliofn_callback({
+			getFoliofnSummary_callback({
 				purchasedPendingTotal: purchasedPendingTotal,
 				soldPendingTotal: soldPendingTotal,
 			});
 		})
-		.fail(function getFoliofn_get_fail(jqXHR, textStatus, errorThrown)
+		.fail(function getFoliofnSummary_get_fail(jqXHR, textStatus, errorThrown)
 		{
 		var FUNCNAME = funcname(arguments);
 
@@ -7458,23 +7412,23 @@ var DEBUG = debug(true, arguments);
 			var summaryNotesInput = summarydiv.find("#summaryNotesInput");
 			var summaryNotesRefreshButton = summarydiv.find("#summaryNotesRefreshButton");
 
-			function updateVitals(vars)	// javascript is single-threaded, yes? so we should be ok
+			function updateSummary(vars)	// javascript is single-threaded, yes? so we should be ok
 			{
 			var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 				if(vars == null)
 				{
-					updateVitals.vars = null;
+					updateSummary.vars = null;
 					summaryValuesInput.addClass('lcac_updating');
 					return false;
 				}
 
-				if(updateVitals.vars == null)
-					updateVitals.vars = {};
+				if(updateSummary.vars == null)
+					updateSummary.vars = {};
 
-				$.extend(updateVitals.vars, vars);
+				$.extend(updateSummary.vars, vars);
 
-				GM_log("updateVitals.vars=", updateVitals.vars);
+				GM_log("updateSummary.vars=", updateSummary.vars);
 
 				var notDone = false;
 
@@ -7493,20 +7447,20 @@ var DEBUG = debug(true, arguments);
 				}
 
 				var str = ""
-					+ sprintfOrEllipsis(updateVitals.vars.accountTotal, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.totalPayments, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.accruedInterest, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.availableCash, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.purchasedPendingTotal, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.soldPendingTotal, "$%0.2f")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.notYetIssued_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.issuedAndCurrent_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.inGracePeriod_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late16To30Days_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.late31To120Days_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.fullyPaid_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.default_count, "%d")
-					+ "\t" + sprintfOrEllipsis(updateVitals.vars.chargedOff_count, "%d")
+					+ sprintfOrEllipsis(updateSummary.vars.accountTotal, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.totalPayments, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.accruedInterest, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.availableCash, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.purchasedPendingTotal, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.soldPendingTotal, "$%0.2f")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.notYetIssued_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.issuedAndCurrent_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.inGracePeriod_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.late16To30Days_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.late31To120Days_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.fullyPaid_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.default_count, "%d")
+					+ "\t" + sprintfOrEllipsis(updateSummary.vars.chargedOff_count, "%d")
 					;
 				
 				GM_log("str=", str);
@@ -7526,18 +7480,18 @@ var DEBUG = debug(true, arguments);
 
 			function doSummaryValues(doSummaryValues_callback)
 			{
-				updateVitals(null);	// reset it
+				updateSummary(null);	// reset it
 
 				getAccountSummary(
 					function(retvals)	// callback
 					{
-						updateVitals(retvals) && doSummaryValues_callback();
+						updateSummary(retvals) && doSummaryValues_callback();
 					});
 
-				getFoliofn(
+				getFoliofnSummary(
 					function(retvals)	// callback
 					{
-						updateVitals(retvals) && doSummaryValues_callback();
+						updateSummary(retvals) && doSummaryValues_callback();
 					});
 			}
 
@@ -10347,8 +10301,8 @@ var DEBUG = debug(true, arguments);
 	}
 //	else if(href.match(/lenderAccountDetail.action/))
 //	{
-//		/* for testing parseAccountDetail() */
-//		parseAccountDetail($("body").html());
+//		/* for testing parse_lenderAccountDetail() */
+//		parse_lenderAccountDetail($("body").html());
 //	}
 	else
 	{
