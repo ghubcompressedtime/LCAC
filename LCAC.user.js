@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.218
+// @version        3.219
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -3378,7 +3378,7 @@ var DEBUG = debug(false, arguments);
 	if(!highlightLoanPerfBAD)
 	{
 		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|engaged with debt consolidator|skip trace|mail.*letter)", "gi");
-		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|payment failed|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan)", "gi");
+		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|payment failed|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue)", "gi");
 	}
 
 	var allelements = $("div#content-wrap *:not(:has(*)), div#master_content *:not(:has(*))");	// foliofn and LC are different
@@ -5371,7 +5371,8 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 				.replace('-', 'To')
 				.replace('days', 'Days')
 				.replace(/[^A-Za-z0-9,()]/g, '')	
-				.replace(/\s/g, '')
+				.replace(/\s+/g, '')
+				.replace(/,/g, '')
 			;
 
 			var split = text.split(/[()]/);	
@@ -7101,7 +7102,7 @@ var DEBUG = debug(true, arguments);
 
 	function getAccountSummary(callback)
 	{
-	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 		var requestURL = "/account/lenderAccountDetail.action";
 
@@ -7414,7 +7415,7 @@ var DEBUG = debug(true, arguments);
 
 			function updateSummary(vars)	// javascript is single-threaded, yes? so we should be ok
 			{
-			var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+			var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 				if(vars == null)
 				{
@@ -7428,7 +7429,7 @@ var DEBUG = debug(true, arguments);
 
 				$.extend(updateSummary.vars, vars);
 
-				GM_log("updateSummary.vars=", updateSummary.vars);
+				DEBUG && GM_log("updateSummary.vars=", updateSummary.vars);
 
 				var notDone = false;
 
@@ -7445,6 +7446,8 @@ var DEBUG = debug(true, arguments);
 
 					return value;
 				}
+
+				DEBUG && GM_log("updateSummary.vars=", updateSummary.vars);
 
 				var str = ""
 					+ sprintfOrEllipsis(updateSummary.vars.accountTotal, "$%0.2f")
@@ -7463,7 +7466,7 @@ var DEBUG = debug(true, arguments);
 					+ "\t" + sprintfOrEllipsis(updateSummary.vars.chargedOff_count, "%d")
 					;
 				
-				GM_log("str=", str);
+				DEBUG && GM_log("str=", str);
 
 				summaryValuesInput.val(str);
 
