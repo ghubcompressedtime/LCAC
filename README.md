@@ -1,3 +1,5 @@
+Note: I mostly use Chrome now. Let me know if something isn't working, especially if you're using Firefox.
+
 Step 1. Install Greasemonkey (for Firefox) https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/ or Tampermonkey (for Chrome) https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo
 
 Step 2. Follow this installtion Link: https://github.com/ghubcompressedtime/LCAC/raw/master/LCAC.user.js
