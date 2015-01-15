@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.219
+// @version        3.221
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -161,7 +161,7 @@ GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
 var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
 GM_log("LOADSUMMARYATSTARTUP=", LOADSUMMARYATSTARTUP);
 
-var notesRawDataURL = '/account/notesRawDataExtended.action';
+var notesRawDataURL = '/account/notesRawDataExtended.action';	// available from https://www.lendingclub.com/account/loans.action
 
 var printStackTrace;
 if(DEBUG && unsafeWindow.console) {
@@ -7099,6 +7099,90 @@ var DEBUG = debug(true, arguments);
 			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
+	
+	function checkAccountActivity(callback)
+	{
+	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+
+		var date = new Date();
+		GM_log(FUNCNAME + " date.getMonth() + 1=" + (date.getMonth() + 1) + " date.getDate()=" + date.getDate() + " date.getFullYear()=" + date.getFullYear());
+		
+		date = sprintf("%02d/%02d/%d", date.getMonth() + 1, date.getDate(), date.getFullYear());
+		GM_log(FUNCNAME + " date=" + date);
+		
+		GM_setValue("LCAC_checkAccountActivityMade", null);	// for testing
+		GM_setValue("LCAC_checkAccountActivityChecked", null);	// for testing
+
+		var dateprev = GM_getValue("LCAC_checkAccountActivityMade");
+		GM_log(FUNCNAME + " 1 date=" + date + " dateprev=" + dateprev + " returning");
+		if(dateprev == date)
+		{
+			var total = GM_getValue("LCAC_checkAccountActivityAmount");
+			GM_log(FUNCNAME + " 1 total=" + total);
+			callback(total);
+			return;
+		}
+
+		var requestURL = sprintf("/account/getLenderActivity.action?output=csv&reportType=all&end_date_monthly_statements=%s&start_date_monthly_statements=%s"
+			, date
+			, date
+			);
+		GM_log(FUNCNAME + " requestURL=" + requestURL);
+			
+		$.get(requestURL, function checkAccountActivity_get(responseText, textStatus, jqXHR) 	// success
+		{
+			var FUNCNAME = funcname(arguments);
+		
+			if(responseText.match(/Member Sign-In/))		// we've been logged out
+			{
+				/* XXX alert the user */
+				callback(null);
+				return;
+			}
+			
+			DEBUG && GM_log(FUNCNAME + " responseText.length=", responseText.length);
+			DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0,200) + "...");
+//			DEBUG && GM_log(FUNCNAME + " date=" + date);
+
+			var payments = responseText.match(/Total Payments for this date,([-+\d\.]*)/);
+			var fees = responseText.match(/Total Investor Fees for this date,([-+\d\.]*)/);
+			DEBUG && GM_log(FUNCNAME + " payments=", payments);
+			DEBUG && GM_log(FUNCNAME + " fees=", fees);
+
+			//search for "Total Payments for this date"
+			payments = payments ? parseFloat(payments[1]) : null;
+			fees = fees ? parseFloat(fees[1]) : null;
+			
+			DEBUG && GM_log(FUNCNAME + " payments=", payments);
+			DEBUG && GM_log(FUNCNAME + " fees=", fees);
+			
+			if(payments || fees)
+			{
+				var total = payments + fees;	// null + x = x
+				DEBUG && GM_log(FUNCNAME + " total=", total);
+
+//				alert(sprintf("Payments made for %s $%0.2f", date, payments));
+				GM_setValue("LCAC_checkAccountActivityMade", date);
+				GM_setValue("LCAC_checkAccountActivityAmount", total);
+				callback(total);
+			}
+			else
+			{
+//				var dateprev = GM_getValue("LCAC_checkAccountActivityChecked");
+//				if(dateprev != date)
+//					alert("Payments not yet made for " + date);
+				GM_setValue("LCAC_checkAccountActivityChecked", date);
+				callback(false);
+			}
+		})
+		.fail(function checkAccountActivity_get_fail(jqXHR, textStatus, errorThrown)
+		{
+		var FUNCNAME = funcname(arguments);
+
+			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+		});
+	}
 
 	function getAccountSummary(callback)
 	{
@@ -7309,16 +7393,19 @@ var DEBUG = debug(true, arguments);
 			/* \s\S is like . but also matches embedded newlines */
 			summarydiv.find("fieldset")
 				.append(
-					"<div>" +
-					"<input id='summaryValuesInput' type=text readonly onclick='select();' style='width:35em' />" +
+					"<div style='width:100%'>" +
+					"<input id='summaryValuesInput' type=text readonly onclick='select();' style='min-width:38em' />" +
 					"<input id='summaryValuesRefreshButton' type=button style='width:5em;' value='Refresh' />" +
-					"<br>" +
-					"<input id='summaryNotesInput' type=text readonly onclick='select();' style='width:35em' />" +
+					"</div>" +
+					"<div style='width:100%'>" +
+					"<input id='summaryNotesInput' type=text readonly onclick='select();' style='min-width:38em' />" +
 					"<input id='summaryNotesRefreshButton' type=button style='width:5em;' value='Refresh' />" +
 					"</div>" +
 
 					(LOOKUPBUTTONS ?
 					"<div style='text-align:center;'>" +
+					"<label>Payments Today:</label>" +
+					"<input class=LCAC_paymentsToday value='--' readonly style='width:4em;'/>" +
 					"<label>Lookup:</label>" +
 					"<input id='loanIdInput' type=text size=8 />" +
 					"<input id='loanIdButton' type=button value='Loan Id' />" +
@@ -7484,6 +7571,26 @@ var DEBUG = debug(true, arguments);
 			function doSummaryValues(doSummaryValues_callback)
 			{
 				updateSummary(null);	// reset it
+
+				checkAccountActivity(function checkAccountActivity_callback(payments)
+				{	
+				var DEBUG = debug(true, arguments);
+
+					if(payments === false)
+						payments = 'N/A';
+					else if(payments === null)
+						payments = '?';
+					else
+						payments = sprintf("$%0.2f", payments);
+
+					GM_log("payments=" + payments);
+
+					var input = $("input.LCAC_paymentsToday");
+					
+					GM_log("input=", input);
+
+					input.val(payments);
+				});
 
 				getAccountSummary(
 					function(retvals)	// callback
