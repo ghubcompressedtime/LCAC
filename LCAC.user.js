@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.221
+// @version        3.222
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -54,6 +54,8 @@
 // @include        https://www.lendingclub.com/portfolio/placeOrder.action*
 // @include        https://www.lendingclub.com/portfolio/viewOrder.action*
 // @include        https://www.lendingclub.com/public/about-us.action
+// @include        https://www.lendingclub.com/account/lenderActivity.action
+// @include        https://www.lendingclub.com/account/getLenderActivity.action
 
 // @include        file://*/tradingAccount.action*
 
@@ -4160,6 +4162,8 @@ var DEBUG = debug(true, arguments);
 
 	var url = "/foliofn/updateLoanCheckBoxAj.action";
 
+	noteId = parseInt(noteId);	// strings get rejected?
+
 	/*
 	 * 2014-12-21, e.g: random=asdf&json=[{"noteId":3108074,"remove":false}]
 	 */
@@ -7100,36 +7104,94 @@ var DEBUG = debug(true, arguments);
 		});
 	}
 	
-	function checkAccountActivity(callback)
+	function getLenderActivityMulti(callback)
+	{
+	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+				
+		var lenderActivityWindow = window.open(null, "_lenderActivity");
+		if(lenderActivityWindow == null)
+		{
+			alert("Could not open a window. Are popups blocked?");
+			return;
+		}
+		
+		lenderActivityWindow.document.write(
+			"<head><title>Lender Activity</title></head>" +
+			"<body><pre id='LenderActivity'>");
+
+		// Note: "Activity older than 6 months is not available."
+
+		var endDate = new Date(2015, 01, 16);	// today (month is 0-based)
+
+		var startDate = new Date(endDate.getTime());
+		startDate.setDate(2);
+
+		var count = 20;
+
+		loop();
+
+		function loop()
+		{
+			GM_log("startDate=", startDate, " endDate=", endDate);
+			getLenderActivity(startDate, endDate, true, function(responseText)
+			{
+				GM_log("responseText=", responseText.substring(0, 256) + "...");
+
+				if(!responseText)
+				{
+					lenderActivityWindow.document.write("--Error--");
+					if(callback) callback(false);
+					return;
+				}
+				else if(responseText.match(/master_error-wrapper/))
+				{
+//					GM_log("responseText=", responseText);
+//					lenderActivityWindow.document.write("--EOF--");
+					if(callback) callback(true);
+					return;
+				}
+
+				lenderActivityWindow.document.write(responseText);
+
+				endDate = startDate;
+				startDate = new Date(endDate);
+				startDate.setDate(2);
+				startDate.setMonth(startDate.getMonth() - 1);
+
+				loop();
+			});
+		}
+	}
+
+	function getLenderActivity(
+		startdate, enddate
+		, reportTypeExtended
+		, callback
+		)
 	{
 	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
-		var date = new Date();
-		GM_log(FUNCNAME + " date.getMonth() + 1=" + (date.getMonth() + 1) + " date.getDate()=" + date.getDate() + " date.getFullYear()=" + date.getFullYear());
-		
-		date = sprintf("%02d/%02d/%d", date.getMonth() + 1, date.getDate(), date.getFullYear());
-		GM_log(FUNCNAME + " date=" + date);
-		
-		GM_setValue("LCAC_checkAccountActivityMade", null);	// for testing
-		GM_setValue("LCAC_checkAccountActivityChecked", null);	// for testing
+		var reportType = reportTypeExtended ? 'extended' : 'all';
 
-		var dateprev = GM_getValue("LCAC_checkAccountActivityMade");
-		GM_log(FUNCNAME + " 1 date=" + date + " dateprev=" + dateprev + " returning");
-		if(dateprev == date)
-		{
-			var total = GM_getValue("LCAC_checkAccountActivityAmount");
-			GM_log(FUNCNAME + " 1 total=" + total);
-			callback(total);
-			return;
-		}
+		// Download All: https://www.lendingclub.com/account/getLenderActivity.action?output=csv&reportType=all&end_date_monthly_statements=02%2F16%2F2015&start_date_monthly_statements=02%2F01%2F2015
+		// Download All - Extended: https://www.lendingclub.com/account/getLenderActivity.action?output=csv&reportType=extended&end_date_monthly_statements=02%2F16%2F2015&start_date_monthly_statements=02%2F01%2F2015
 
-		var requestURL = sprintf("/account/getLenderActivity.action?output=csv&reportType=all&end_date_monthly_statements=%s&start_date_monthly_statements=%s"
-			, date
-			, date
+		startdate = sprintf("%02d/%02d/%d", startdate.getMonth() + 1, startdate.getDate(), startdate.getFullYear());
+		GM_log(FUNCNAME + " startdate=" + startdate);
+
+		
+		enddate = sprintf("%02d/%02d/%d", enddate.getMonth() + 1, enddate.getDate(), enddate.getFullYear());
+		GM_log(FUNCNAME + " enddate=" + enddate);
+		
+
+		var requestURL = sprintf("/account/getLenderActivity.action?output=csv&reportType=%s&end_date_monthly_statements=%s&start_date_monthly_statements=%s"
+			, reportType
+			, enddate
+			, startdate
 			);
 		GM_log(FUNCNAME + " requestURL=" + requestURL);
 			
-		$.get(requestURL, function checkAccountActivity_get(responseText, textStatus, jqXHR) 	// success
+		$.get(requestURL, function getLenderActivity_get_callback(responseText, textStatus, jqXHR) 	// success
 		{
 			var FUNCNAME = funcname(arguments);
 		
@@ -7139,10 +7201,49 @@ var DEBUG = debug(true, arguments);
 				callback(null);
 				return;
 			}
-			
+
+			callback(responseText);
+		})
+		.fail(function getLenderActivity_get_fail(jqXHR, textStatus, errorThrown)
+		{
+		var FUNCNAME = funcname(arguments);
+
+			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+
+			callback(null);
+		});
+	}
+
+	function checkAccountActivity(callback)
+	{
+	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+
+		var now = new Date();
+		
+//		GM_setValue("LCAC_checkAccountActivityMade", null);	// for testing
+//		GM_setValue("LCAC_checkAccountActivityChecked", null);	// for testing
+
+		var dateprev = GM_getValue("LCAC_checkAccountActivityMade");
+		var datecurr = now.toString();
+		GM_log(FUNCNAME + " dateprev=" + dateprev);
+		GM_log(FUNCNAME + " datecurr=" + datecurr);
+
+		if(dateprev == datecurr)
+		{
+			var total = GM_getValue("LCAC_checkAccountActivityAmount");
+			GM_log(FUNCNAME + " 1 total=" + total);
+			callback(total);
+			return;
+		}
+
+		getLenderActivity(now, now, false, function checkAccountActivity_getLenderActivity_callback(responseText)
+		{
+		var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+
 			DEBUG && GM_log(FUNCNAME + " responseText.length=", responseText.length);
 			DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0,200) + "...");
-//			DEBUG && GM_log(FUNCNAME + " date=" + date);
+//			DEBUG && GM_log(FUNCNAME + " now=" + now);
 
 			var payments = responseText.match(/Total Payments for this date,([-+\d\.]*)/);
 			var fees = responseText.match(/Total Investor Fees for this date,([-+\d\.]*)/);
@@ -7161,26 +7262,15 @@ var DEBUG = debug(true, arguments);
 				var total = payments + fees;	// null + x = x
 				DEBUG && GM_log(FUNCNAME + " total=", total);
 
-//				alert(sprintf("Payments made for %s $%0.2f", date, payments));
-				GM_setValue("LCAC_checkAccountActivityMade", date);
+				GM_setValue("LCAC_checkAccountActivityMade", datecurr);
 				GM_setValue("LCAC_checkAccountActivityAmount", total);
 				callback(total);
 			}
 			else
 			{
-//				var dateprev = GM_getValue("LCAC_checkAccountActivityChecked");
-//				if(dateprev != date)
-//					alert("Payments not yet made for " + date);
-				GM_setValue("LCAC_checkAccountActivityChecked", date);
+				GM_setValue("LCAC_checkAccountActivityChecked", now);
 				callback(false);
 			}
-		})
-		.fail(function checkAccountActivity_get_fail(jqXHR, textStatus, errorThrown)
-		{
-		var FUNCNAME = funcname(arguments);
-
-			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 
@@ -7572,7 +7662,7 @@ var DEBUG = debug(true, arguments);
 			{
 				updateSummary(null);	// reset it
 
-				checkAccountActivity(function checkAccountActivity_callback(payments)
+				checkAccountActivity(function doSummaryValues_checkAccountActivity_callback(payments)
 				{	
 				var DEBUG = debug(true, arguments);
 
@@ -7718,7 +7808,7 @@ var DEBUG = debug(true, arguments);
 
 					// when done reset the timeleft
 					doSummaryValues(
-						function doSummaryValues_callback(retval)
+						function summaryValuesRefreshButtonClick_doSummaryValues_callback(retval)
 						{
 							summaryValuesRefreshButton.val(valueOrig);
 						});
@@ -7742,7 +7832,7 @@ var DEBUG = debug(true, arguments);
 
 					// when done reset the timeleft
 					doSummaryNotes(
-						function doSummaryNotes_callback()
+						function summaryNotesRefreshButtonClick_doSummaryNotes_callback()
 						{
 							summaryNotesRefreshButton.val(valueOrig);
 						});
@@ -7831,7 +7921,7 @@ var DEBUG = debug(true, arguments);
 			});
 
 			var scanOrdersButton = summarydiv.find("input#scanOrdersButton");
-			scanOrdersButton.click(function()
+			scanOrdersButton.click(function scanOrdersButton_click()
 			{
 				var button = $(this);
 
@@ -7842,7 +7932,7 @@ var DEBUG = debug(true, arguments);
 					button.addClass('lcac_running');
 					button.val('Running');
 
-					scanOrders(button, function scanOrders_callbackDone(success)
+					scanOrders(button, function scanOrdersButton_click_scanOrders_callbackDone(success)
 					{
 						if(success)
 							button.val('Done');
@@ -7872,7 +7962,7 @@ var DEBUG = debug(true, arguments);
 						scanLoansButton.addClass('lcac_running');
 						scanLoansButton.val('Running');
 						
-						scanLoans(scanLoansButton, function scanLoans_callbackDone(success)
+						scanLoans(scanLoansButton, function scanLoansButton_click_scanLoans_callbackDone(success)
 						{
 							if(success)
 								scanLoansButton.val('Done');
@@ -8281,7 +8371,7 @@ var DEBUG = debug(true, arguments);
 			$("#searchNote").val("Searching...");
 
 			var MAXSEARCHNOTES = 5;
-			searchNote(noteIdRegExp, function searchNote_callback(notes)
+			searchNote(noteIdRegExp, function searchNote_on_click_searchNote_callback(notes)
 			{
 			var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
@@ -9672,7 +9762,7 @@ var DEBUG = debug(true, arguments);
 		{
 			$("#availableCashInput").val('...');
 
-			getAvailableCash(function getAvailableCash_callback(availableCash)
+			getAvailableCash(function updateAvailableCash1_getAvailableCash_callback(availableCash)
 			{
 			var DEBUG = debug(false, arguments);
 
@@ -10394,14 +10484,38 @@ var DEBUG = debug(true, arguments);
 
 	//	findHeadersCheckCells(table, null, false, {addCommentColumn:true});
 	}
-	else if(href.match(/lenderActivity.action/))	// LC Account Activity date entry form
+	else if(href.match(/lenderActivity.action/)	// LC Account Activity date entry form
+		|| href.match(/getLenderActivity.action/))	// LC Account Activity page with data
 	{
+		var target = $("div#submitAccountDatesContainer");
+		GM_log("target=", target);
+		
+		target.after("<button id='downloadActivity'>Download 6 months*</button>");
+
+		var button = $("button#downloadActivity");
+		GM_log("button=", button);
+
+		button
+			.on("click", function(e)
+			{
+				e.preventDefault();
+
+				button
+					.text("Downloading...")
+					.prop('disabled', true);
+
+				getLenderActivityMulti(function getLenderActivityMulti_callback()
+				{
+					GM_log("getLenderActivityMulti_callback()");
+					button
+						.text("Download 6 months*")
+						.prop('disabled', false);
+				});
+			});
 	}
 	else if(href.match(/orderDetails.action/))	// scrape the Order Details
 	{
-	/* e.g.
-		/account/loanPerf.action?loan_id=1532036&order_id=3335086&note_id=13739444
-	*/
+		// e.g. /account/loanPerf.action?loan_id=1532036&order_id=3335086&note_id=13739444
 
 		scanForLoanPerfLinks($("body"));
 	}
