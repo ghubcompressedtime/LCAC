@@ -3379,41 +3379,51 @@ var DEBUG = debug(false, arguments);
 
 	if(!highlightLoanPerfBAD)
 	{
-		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|engaged with debt consolidator|skip trace|mail.*letter)", "gi");
-		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|payment failed|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue)", "gi");
+		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
+		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue)", "gi");
 	}
 
-	var allelements = $("div#content-wrap *:not(:has(*)), div#master_content *:not(:has(*))");	// foliofn and LC are different
+	var leafelements = $("div#content-wrap *:not(:has(*)), div#master_content *:not(:has(*))");	// foliofn and LC are different
 
-	allelements = allelements.filter(
-    	function() {return $(this).parents('#lcLoanPerf1, .log-content, .collectionlog-header').length < 1;}
+	// remove leafs that descend from the following elements
+	leafelements = leafelements.filter(
+		function() {
+			var parents = $(this).parents('.log-content, .collectionlog-header');
+			return parents.length < 1;	// true means keep
+		}
 	);
 
-	GM_log("allelements=", allelements);
-
+	DEBUG && GM_log("leafelements=", leafelements);
 
 	/*
 	 * add some warnings to the top
 	 */
-	var warning = "", warning2 = "", warning3 = "";
+	var warning = [], warning2 = [], warning3 = [];
 	
-	var allelementshtml = [];
-	allelements.each(function(){ allelementshtml.push($(this).html())});	// html() is only for first element of set so loop
-	var html = allelementshtml.join(" ");
+	var htmlarr = [];
+	// set.html() returns only first element of jQuery set, so we have to loop to get it all
+	leafelements.each(function(){
+		htmlarr.push($(this).html())
+	});
+	DEBUG && GM_log("htmlarr=", htmlarr);
+
+	var html = htmlarr.join(" ");
+	DEBUG && GM_log("html=" + html);
 
 	html = html.replace(/(\s+)/gm, ' ');	// make one big line for multiline Recoveries match XXX should probably do this a little better
+	DEBUG && GM_log("html=" + html);
 
 	if(html.match(/(charged\s*off)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/(default)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/(deceased)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/(lawsuit)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	/* some examples:
 	 * Borrower filed for Chapter 13 Bankruptcy
@@ -3421,38 +3431,41 @@ var DEBUG = debug(false, arguments);
 	 * Borrower provided Bankruptcy counsel information
 	 */
 	if(html.match(/(chapter[\s\d]*bankruptcy)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 	else if(html.match(/(Bankruptcy\s*counsel)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/(Payment Solutions specialist)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
+
+	if(html.match(/(cease and desist)/i))
+		warning.push(RegExp.$1);
 
 	if(html.match(/(external collections)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 	else if(html.match(/(collections)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/engaged with debt (consolidator)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/(skip trace)/i))
-		warning += '/' + RegExp.$1;
+		warning.push(RegExp.$1);
 
 	if(html.match(/(Processing\.\.\.)/))
-		warning2 += '/' + RegExp.$1;
+		warning2.push(RegExp.$1);
 	
 	if(html.match(/(On Payment Plan)/))	// not ignore case
-		warning2 += '/' + RegExp.$1;
+		warning2.push(RegExp.$1);
 	
 	if(html.match(/(check payment)/i))
-		warning2 += '/' + RegExp.$1;
+		warning2.push(RegExp.$1);
 
 	if(html.match(/(grace period)/i))
-		warning2 += '/' + RegExp.$1;
+		warning2.push(RegExp.$1);
 
 	if(html.match(/(Fully Paid)/))
-		warning3 += '/' + RegExp.$1;
+		warning3.push(RegExp.$1);
 
 /* e.g.
 <tr> <th>Recoveries</th> <td>$17.04</td> </tr>
@@ -3460,20 +3473,23 @@ var DEBUG = debug(false, arguments);
 	if(html.match(/(Recoveries)[^\$]*\$([\d.]+)/))
 	{
 		if(parseFloat(RegExp.$2) > 0.00)
-			warning3 += '/' + RegExp.$1;
+			warning3.push(RegExp.$1);
 	}
 
 	if(html.match(/(No Fee)/))
-		warning3 += '/' + RegExp.$1;
+		warning3.push(RegExp.$1);
 
 	/* remove any initial slashes */
-	warning = warning.replace(/\//, '').toUpperCase();
-	warning2 = warning2.replace(/\//, '');
-	warning3 = warning3.replace(/\//, '').toUpperCase();
+	warning = warning.join('/').toUpperCase();
+	warning2 = warning2.join('/');
+	warning3 = warning3.join('/').toUpperCase();
 
+	DEBUG && GM_log("warning=" + warning);
+	DEBUG && GM_log("warning2=" + warning2);
+	DEBUG && GM_log("warning3=" + warning3);
 
-	highlightElements(allelements, highlightLoanPerfBAD, 'lcac_redRev');
-	highlightElements(allelements, highlightLoanPerfWARNING, 'lcac_yellowRev');
+	highlightElements(leafelements, highlightLoanPerfBAD, 'lcac_redRev');
+	highlightElements(leafelements, highlightLoanPerfWARNING, 'lcac_yellowRev');
 
 
 	$("div#noFee:contains('No Fee:')").addClass("lcac_greenrev");
@@ -10487,10 +10503,10 @@ var DEBUG = debug(true, arguments);
 	else if(href.match(/lenderActivity.action/)	// LC Account Activity date entry form
 		|| href.match(/getLenderActivity.action/))	// LC Account Activity page with data
 	{
-		var target = $("div#submitAccountDatesContainer");
+		var target = $("a.notesDownloadLink:last");
 		GM_log("target=", target);
 		
-		target.after("<button id='downloadActivity'>Download 6 months*</button>");
+		target.after("<button id='downloadActivity' style='clear:both; float:right'>Download 6 months*</button>");
 
 		var button = $("button#downloadActivity");
 		GM_log("button=", button);
