@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.223
+// @version        3.224
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -1376,15 +1376,25 @@ var DEBUG = debug(false, arguments);
 		index++)
 	{
 		var record = records[index];
+		GM_log("record=", record);
 
 		/*
 		 * WARNING: principal but no interest possible when loan is in Default status
 		 */
 
 		var dueDate = record._oData.dueDate;
+		GM_log("dueDate=", dueDate);
 		dueDate = Y2K(dueDate);
+
 		var compDate = record._oData.compDate;
+		GM_log("typeof compDate=", typeof compDate);
+		GM_log("compDate=", compDate);
+
+		if(typeof compDate == 'string' && compDate.match(/^Multiple Dates/i))
+			continue;
+
 		compDate = Y2K(compDate);
+
 		var status = record._oData.status.replace(/[\r\n\s]+/g, ' ').trim();
 		var amount = record._oData.paymentAmount;
 		var lateFee = record._oData.lateFees.replace(/\$/, '').trim();
