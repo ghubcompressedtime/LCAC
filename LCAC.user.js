@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.224
+// @version        3.225
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -424,16 +424,25 @@ DEBUG && GM_log(FUNCNAME + " value="+ value+ " typeof value="+ typeof value);
 /* WARNING: This changes the date object (unless it returns null) */
 function Y2K(date)
 {
+var DEBUG = debug(false, arguments);
+
 	if(date == null)
+	{
+		DEBUG && GM_log("date=", date, " returning null");
 		return null;
+	}
 
 	if(date.getTime() == 0)
+	{
+		DEBUG && GM_log("date.getTime()=", date.getTime(), " returning null");
 		return null;
+	}
 
 	var year = date.getFullYear();
 	if(year < 1970)
     	date.setFullYear(year + 100);
 
+	DEBUG && GM_log("returning date=", date);
 	return date;
 }
 
@@ -1290,7 +1299,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	
 function doPaymentHistory(vars, datatable)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments);
 
 	var rs = datatable.getRecordSet();
 	GM_log("rs=", rs);
@@ -1301,12 +1310,16 @@ var DEBUG = debug(false, arguments);
 	 */
 	var duplicateCount = 0;
 	var record1 = records[records.length - 1];
+	GM_log("doPaymentHistory() first loop");
 	for(var index = records.length - 2;
 		index >= 0;
 		index--)	// start at the end and go up so we can delete rows
 	{
 		var record2 = record1;
 		record1 = records[index];
+
+//		GM_log("record1=", record1);
+//		GM_log("record2=", record2);
 		
 		var dueDate1 = record1._oData.dueDate;
 		var dueDate2 = record2._oData.dueDate;
@@ -1369,8 +1382,12 @@ var DEBUG = debug(false, arguments);
 	var paymentHistory = [];
 
 	paymentHistory.dueDateMissedCutoff = false;
+
+	var dueDate;
 	
 	/* There's always at least 1 row in the table */
+	GM_log("doPaymentHistory() second loop");
+	var rowcount = -1;
 	for(var index = 0;
 		index < records.length;
 		index++)
@@ -1382,9 +1399,15 @@ var DEBUG = debug(false, arguments);
 		 * WARNING: principal but no interest possible when loan is in Default status
 		 */
 
-		var dueDate = record._oData.dueDate;
-		GM_log("dueDate=", dueDate);
-		dueDate = Y2K(dueDate);
+		// Wed Dec 31 1969 19:00:00 GMT-0500 .getTime() = 0
+		var dueDate0 = record._oData.dueDate;
+		GM_log("1 dueDate0=", dueDate0);
+		dueDate0 = Y2K(dueDate0);
+		GM_log("2 dueDate0=", dueDate0);
+
+		if(dueDate0)
+			dueDate = dueDate0;
+
 
 		var compDate = record._oData.compDate;
 		GM_log("typeof compDate=", typeof compDate);
@@ -1392,6 +1415,11 @@ var DEBUG = debug(false, arguments);
 
 		if(typeof compDate == 'string' && compDate.match(/^Multiple Dates/i))
 			continue;
+
+		rowcount++;
+
+		// XXX When Multiple Dates then dueDate = Wed Dec 31 1969 19:00:00 GMT-0500
+		// maybe could use dueDateIndex?
 
 		compDate = Y2K(compDate);
 
@@ -1419,7 +1447,8 @@ var DEBUG = debug(false, arguments);
 
 		paymentHistory.push(payment);
 
-		if(index == 0)
+		GM_log("index=" + index + " rowcount=" + rowcount + " payment=", payment);
+		if(rowcount == 0)
 		{
 			paymentHistory.first = payment;
 			
@@ -1429,12 +1458,14 @@ var DEBUG = debug(false, arguments);
 				paymentHistory.firstNotScheduledOrProcessing = payment;
 		}
 
-		if(index == 1)
+		if(rowcount == 1)
 		{
 			/* XXX Payment Plan can throw off this calculation
 			 * e.g. https://www.lendingclub.com/foliofn/loanPerf.action?loan_id=772278&order_id=3430255&note_id=5416959
 			 */
 
+			GM_log("paymentHistory=", paymentHistory);
+			GM_log("paymentHistory.first=", paymentHistory.first);
 			var dueDateMissedCutoff = new Date(paymentHistory.first.dueDate);
 			dueDateMissedCutoff.setMonth(dueDateMissedCutoff.getMonth() - 1);	// minus a month
 			dueDateMissedCutoff.setDate(dueDateMissedCutoff.getDate() - 28);	// minus a little more
