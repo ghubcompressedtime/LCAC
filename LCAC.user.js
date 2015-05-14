@@ -102,10 +102,34 @@ var DEBUG = GM_getValue("DEBUG", false);
 
 var GM_log;
 if(DEBUG && unsafeWindow.console) {
-	GM_log = function()
+	GM_log = function GM_log_impl()
 	{
-		arguments[0] = timeFormat() + ' ' + arguments[0];
-		unsafeWindow.console.log.apply(unsafeWindow.console, arguments);	//YYY using "this" was causing problems in chrome
+		try
+		{
+			if(false)
+				arguments[0] = timeFormat() + ' ' + arguments[0];
+
+			unsafeWindow.console.log.apply(unsafeWindow.console, arguments);	//YYY using "this" was causing problems in chrome
+			//XXX fails in Firefox: Error: Permission denied to access property 'length'
+		}
+		catch(ex)
+		{
+//			console.log("GM_log_impl() ex=", ex);
+
+			try
+			{
+				var msg = Array.prototype.join.call(arguments);
+
+				if(false)
+					msg = timeFormat() + ' ' + msg;
+
+				console.log(msg);
+			}
+			catch(ex)
+			{
+				console.log("GM_log_impl() ex=", ex);
+			}
+		}
 	};
 }
 else
