@@ -1922,7 +1922,7 @@ var DEBUG = debug(false, arguments);
 
 		if(vars.outstandingPrincipal > 0)
 		{
-			var expectedPayment = paymentHistory.first.amount;
+			var expectedPayment = paymentHistory.firstNotScheduledOrProcessing.amount;
 			GM_log("expectedPayment=", expectedPayment);
 
 			/*
@@ -5424,7 +5424,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 			/*
 			 * "Adjust account value and returns for past-due Notes" on Summary Page changes this page
 			 * special characters and adds a third column Adjusted Principal Value, e.g.
-			 * In Grace Period† (33)	$415.01	$319.56
+			 * In Grace Period (33)	$415.01	$319.56
 			 * Charged Off* (376)	$7,358.46	$7,358.46
 			 */
 			text = text
