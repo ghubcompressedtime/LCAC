@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.226
+// @version        3.227
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -1731,6 +1731,16 @@ var DEBUG = debug(true, arguments);
 	var ficoTrend = parseTrendData($("table#trend-data tbody tr"));
 	GM_log("ficoTrend=", ficoTrend);
 	
+	var recentCreditScore = parseInt($("th:contains('Recent Credit Score') + td").text());
+	GM_log("recentCreditScore=", recentCreditScore);
+
+	// How often does this happen?
+	//XXX make this a header message instead of an alert
+	if(ficoTrend.finalValue != recentCreditScore)
+	{
+		alert("FICO mismatch ficoTrend: " + ficoTrend.finalValue + " recentCreditScore: " + recentCreditScore);
+	}
+	
 	var trendGraph = $("<div class='lcac_fico_trendGraph'><label>Credit Score Change*</label><br><span class='creditscorechangegraph'></span></div>");
 	GM_log("trendGraph=", trendGraph);
 
@@ -3175,6 +3185,8 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		vals.push(values[index].val);
 	values.vals = vals;
 
+	values.finalValue = vals.length > 0 ? vals[vals.length - 1] : null;
+
 	return values;
 }
 
@@ -3777,7 +3789,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	
 	var lateFees = dom.find("th:contains(Late Fees Received) + td");
 	lateFees = parseFloat2(lateFees.text());	// remove the dollar sign
-	
+
 	var status = dom.find("th:contains(Status) + td").text();
 
 	var chargedOffDefault = status.match(/(charged\s*off|default)/i);	// charged off and default do not appear here
@@ -3802,15 +3814,12 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	var ficoTrend = parseTrendData(dom.find("table#trend-data tbody tr"));
 	DEBUG && GM_log("ficoTrend=", ficoTrend);
-
-	/*YYY ficoTrend appear to always have at least 2 values in the trend
+	
+	/*YYY ficoTrend appears to always have at least 2 values in the trend
 	 * 2014-07-19: or not. e.g. this one is empty: https://www.lendingclub.com/foliofn/browseNotesLoanPerf.action?showfoliofn=true&loan_id=8474597&order_id=30275929&note_id=33143749
 	 */
 
-	if(ficoTrend.length >= 1)
-		var fico = ficoTrend[ficoTrend.length - 1].val;
-	else
-		var fico = -1;
+	var fico = ficoTrend.finalValue;
 
 	if(ficoTrend.length >= 2)
 	{
@@ -3828,6 +3837,13 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		var ficoDropPercent = 0;
 	}
 	
+	var recentCreditScore = parseInt(dom.find("th:contains(Recent Credit Score) + td").text());
+	GM_log("recentCreditScore=", recentCreditScore, " ficoTrend.finalValue=", ficoTrend.finalValue);
+	if(ficoTrend.finalValue != recentCreditScore)
+	{
+		GM_log("FICO MISMATCH ficoTrend.finalValue=" + ficoTrend.finalValue + " recentCreditScore=" + recentCreditScore);
+	}
+	
 	$.extend(vars, {
 		noFee: noFee,
 		recoveries: recoveries,
@@ -3839,6 +3855,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		ficoDrop: ficoDrop,
 		inProcessing: inProcessing,
 		outstandingPrincipal: outstandingPrincipal,
+		recentCreditScore: recentCreditScore,
 	});
 	
 	setLoanFlags(loanId, vars, dosaveStoredData);
@@ -10927,9 +10944,12 @@ var DEBUG = debug(true, arguments);
 							scanLoanPerf(loanId, $(responseText), vars
 								, true/*dosaveStoredData*/);	// XXX save it every 5 or 10 notes
 
-						var ficoMostRecent = ficoTrend.length > 0 ? ficoTrend[ficoTrend.length - 1].val : null;
-
 						var msgArray = [];
+
+						if(ficoTrend.finalValue != vars.recentCreditScore)
+						{
+							msgArray.push("FICO MISMATCH ficoTrend.finalValue=" + ficoTrend.finalValue + " vars.recentCreditScore=" + vars.recentCreditScore);
+						}
 
 						if(vars.chargedOffDefault)
 						{
@@ -10977,7 +10997,8 @@ var DEBUG = debug(true, arguments);
 									loanId,
 									url, note.noteId,
 									msg,
-									ficoMostRecent != null ? ficoMostRecent : '', vars.ficodrop ? ' drop' : '',
+									ficoTrend.finalValue != null ? ficoTrend.finalValue : '',
+									vars.ficodrop ? ' drop' : '',
 									ficoTrend.vals));
 							scanLoans_doit.startnewline = true;
 						}
@@ -11095,7 +11116,7 @@ var DEBUG = debug(true, arguments);
 						var status = note.status;
 						if(status.match(/In\s*Funding|In\s*Review|Fully\s*Paid/))
 							return;
-
+						
 						notesToScan.push(note);
 
 						/* this data doesn't change so just load the ones we don't already have */
@@ -11104,7 +11125,8 @@ var DEBUG = debug(true, arguments);
 							notesToScanNoLocation.push(note);
 					});
 
-					notesToScan.sort(function(a, b) {return a.nextPaymentDate - b.nextPaymentDate});
+//					notesToScan.sort(function(a, b) {return a.nextPaymentDate - b.nextPaymentDate});
+					notesToScan.sort(function(a, b) {return b.nextPaymentDate - a.nextPaymentDate});	// reverse
 
 					scanLoans_doit(notesToScan, notesToScanNoLocation);
 				});
