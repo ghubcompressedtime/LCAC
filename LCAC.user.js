@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.227
+// @version        3.228
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -93,7 +93,8 @@ console.log("LCAC @version " + GM_info.script.version);
 
 //GM_setValue("DEBUG", true);
 //GM_setValue("TESTING", true);
-//GM_setValue("LOADSUMMARYATSTARTUP", true);
+//GM_setValue("LOADSUMMARYVALUESATSTARTUP", true);
+//GM_setValue("LOADSUMMARYNOTESATSTARTUP", true);
 
 var DEBUG = GM_getValue("DEBUG", false);
 
@@ -184,8 +185,8 @@ GM_log("NOFOLIOFNWARNING=", NOFOLIOFNWARNING);
 var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
 
 GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
-var LOADSUMMARYATSTARTUP = GM_getValue("LOADSUMMARYATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
-GM_log("LOADSUMMARYATSTARTUP=", LOADSUMMARYATSTARTUP);
+var LOADSUMMARYVALUESATSTARTUP = GM_getValue("LOADSUMMARYVALUESATSTARTUP", true);	//XXX compression is too slow on Firefox
+var LOADSUMMARYNOTESATSTARTUP = GM_getValue("LOADSUMMARYNOTESATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
 
 var notesRawDataURL = '/account/notesRawDataExtended.action';	// available from https://www.lendingclub.com/account/loans.action
 
@@ -7945,20 +7946,20 @@ var DEBUG = debug(true, arguments);
 				{
 					summaryValuesRefreshButtonClick();
 				});
-			if(LOADSUMMARYATSTARTUP)
+			if(LOADSUMMARYVALUESATSTARTUP)
 				summaryValuesRefreshButtonClick();	// run it once at startup with current page
 			else
-				console.log("LOADSUMMARYATSTARTUP=" + LOADSUMMARYATSTARTUP);
+				console.log("LOADSUMMARYVALUESATSTARTUP=" + LOADSUMMARYVALUESATSTARTUP);
 
 			summaryNotesRefreshButton
 				.on("click", function()
 				{
 					summaryNotesRefreshButtonClick();
 				});
-			if(LOADSUMMARYATSTARTUP)
+			if(LOADSUMMARYNOTESATSTARTUP)
 				summaryNotesRefreshButtonClick();
 			else
-				console.log("LOADSUMMARYATSTARTUP=" + LOADSUMMARYATSTARTUP);
+				console.log("LOADSUMMARYNOTESATSTARTUP=" + LOADSUMMARYNOTESATSTARTUP);
 
 			summarydiv.find("input#importLocalStorageButton")
 				.after(
