@@ -3456,7 +3456,7 @@ var DEBUG = debug(false, arguments);
 
 	if(!highlightLoanPerfBAD)
 	{
-		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
+		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|Advanced collector|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
 		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue)", "gi");
 	}
 
@@ -3512,10 +3512,13 @@ var DEBUG = debug(false, arguments);
 	else if(html.match(/(Bankruptcy\s*counsel)/i))
 		warning.push(RegExp.$1);
 
-	if(html.match(/(Payment Solutions specialist)/i))
+	if(html.match(/(cease and desist)/i))
 		warning.push(RegExp.$1);
 
-	if(html.match(/(cease and desist)/i))
+	if(html.match(/(Advanced collector)/i))
+		warning.push(RegExp.$1);
+
+	if(html.match(/(Payment Solutions specialist)/i))
 		warning.push(RegExp.$1);
 
 	if(html.match(/(external collections)/i))
