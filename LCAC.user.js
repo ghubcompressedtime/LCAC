@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.228
+// @version        3.229
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -102,39 +102,26 @@ var DEBUG = GM_getValue("DEBUG", false);
 //	unsafeWindow.jQuery = unsafeWindow.jQ = jQuery;
 
 var GM_log;
-if(DEBUG && unsafeWindow.console) {
-	GM_log = function GM_log_impl()
-	{
-		try
+try
+{
+	if(DEBUG && unsafeWindow.console)
+		GM_log = function GM_log_impl()
 		{
 			if(false)
 				arguments[0] = timeFormat() + ' ' + arguments[0];
 
 			unsafeWindow.console.log.apply(unsafeWindow.console, arguments);	//YYY using "this" was causing problems in chrome
 			//XXX fails in Firefox: Error: Permission denied to access property 'length'
-		}
-		catch(ex)
-		{
-//			console.log("GM_log_impl() ex=", ex);
-
-			try
-			{
-				var msg = Array.prototype.join.call(arguments);
-
-				if(false)
-					msg = timeFormat() + ' ' + msg;
-
-				console.log(msg);
-			}
-			catch(ex)
-			{
-				console.log("GM_log_impl() ex=", ex);
-			}
-		}
-	};
+		};
 }
-else
-	GM_log = function(){};
+catch(ex)
+{
+	console.log("error in GM_log setup:");
+	console.log("ex=", ex);
+}
+
+if(!GM_log)
+	GM_log = function(){/*nothing*/};
 
 GM_log("lendingclubaddcomments $Revision: 425 $");
 
@@ -212,41 +199,68 @@ else
 
 function DEBUGcall()
 {
-	GM_log("DEBUGcall() arguments=", Array.prototype.slice.call(arguments));
+	try
+	{
+		GM_log("DEBUGcall() arguments=", Array.prototype.slice.call(arguments));
 
-	var func = arguments[0];
-	var arguments2 = Array.prototype.slice.call(arguments, 1);
+		var func = arguments[0];
+		var arguments2 = Array.prototype.slice.call(arguments, 1);
 
-	var retval = func.apply(this, arguments2);
+		var retval = func.apply(this, arguments2);
 
-	GM_log("DEBUGcall() retval=" + retval);
+		GM_log("DEBUGcall() retval=" + retval);
 
-	return retval;
+		return retval;
+	}
+	catch(ex)
+	{
+		console.log("DEBUGcall() ex=", ex);
+	}
+
+	return null;
 }
 
 function funcname(arguments2)
 {
-	if(!arguments2 || !arguments2.callee)
-		return "anonymous()";
+	try
+	{
+		if(!arguments2 || !arguments2.callee)
+			return "anonymous()";
 
-	return arguments2.callee.toString().match(/function (.*?)\(/)[1] + "()";
+		return arguments2.callee.toString().match(/function (.*?)\(/)[1] + "()";
+	}
+	catch(ex)
+	{
+		console.log("funcname() ex=", ex);
+	}
+
+	return null;
 }
 
 function debug(DEBUG2, arguments2, printArgs)
 {
-	if(!DEBUG2 || !DEBUG)
+	if(!(DEBUG2 && DEBUG))
 		return false;
 
 	if(typeof printArgs == 'undefined') printArgs = true;	// default arg
 
-	var FUNCNAME = funcname(arguments2);
+	try
+	{
+		var FUNCNAME = funcname(arguments2);
 
-	if(arguments2 && arguments2.length > 0 && printArgs)
-		GM_log("DEBUG " + FUNCNAME + " args=", Array.prototype.slice.call(arguments2, 0));	//YYY clone array for GM_log since it might change before we print it
-	else
-		GM_log("DEBUG " + FUNCNAME);
+		if(arguments2 && arguments2.length > 0 && printArgs)
+		{
+			GM_log("DEBUG " + FUNCNAME + " args=", Array.prototype.slice.call(arguments2, 0));	//YYY clone array for GM_log since it might change before we print it
 
-	return FUNCNAME;
+			return FUNCNAME;
+		}
+	}
+	catch(ex)
+	{
+		console.log("debug() ex=", ex);
+	}
+
+	return null;
 }
 
 /*
@@ -342,7 +356,7 @@ var FUNCNAME = funcname(arguments);
 	return text2Value(value, debug);
 }
 
-GM_log("HEREXXX ", text2Value("12.694121113196"));
+//GM_log("HEREXXX ", text2Value("12.694121113196"));
 
 function text2Value(value0, debug)
 {
@@ -10335,7 +10349,7 @@ var DEBUG = debug(true, arguments);
 								loanIdCount = ++loanIdCountArray[loanId];
 
 							newValue =
-	//								DEBUGcall(adjustAskingPriceAutoFunc,
+//								DEBUGcall(adjustAskingPriceAutoFunc,
 								adjustAskingPriceAutoFunc(
 									index, loanId, loanIdCount,
 									interestRate, principalPlus, loanStatus, outstandingPrincipal,
