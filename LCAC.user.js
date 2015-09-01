@@ -91,6 +91,9 @@ compress stored data for ffn export
 
 console.log("LCAC @version " + GM_info.script.version);
 
+//unsafeWindow.GM_setValue = GM_setValue;
+//unsafeWindow.GM_getValue = GM_getValue;
+
 //GM_setValue("DEBUG", true);
 //GM_setValue("TESTING", true);
 //GM_setValue("LOADSUMMARYVALUESATSTARTUP", true);
