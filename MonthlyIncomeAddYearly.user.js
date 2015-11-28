@@ -4,10 +4,14 @@
 // @version      0.1
 // @description  
 // @author       
-// @match        https://www.lendingclub.com/account/loanDetail.action?loan_id=*
-// @require      https://code.jquery.com/jquery-2.1.4.js
+
+// @match        https://www.lendingclub.com/account/loanDetail.action*
+// @match        https://www.lendingclub.com/browse/loanDetail.action*
+
 // @grant        none
+// @require      https://code.jquery.com/jquery-2.1.4.js
 // ==/UserScript==
+
 /* jshint -W097 */
 'use strict';
 
