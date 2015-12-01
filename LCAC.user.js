@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.229
+// @version        3.230
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -65,7 +65,7 @@
 // @include        https://www.lendingclub.com/account/lenderAccountDetail.action
 
 /**
- * Copyright 2011,2012 Emery Lapinski
+ * Copyright 2011-2015 Emery Lapinski
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC @version " + GM_info.script.version);
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4606 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -100,6 +100,7 @@ console.log("LCAC @version " + GM_info.script.version);
 //GM_setValue("LOADSUMMARYNOTESATSTARTUP", true);
 
 var DEBUG = GM_getValue("DEBUG", false);
+var DEBUG = true;	// for testing
 
 //if(DEBUG)
 //	unsafeWindow.jQuery = unsafeWindow.jQ = jQuery;
@@ -125,9 +126,6 @@ catch(ex)
 
 if(!GM_log)
 	GM_log = function(){/*nothing*/};
-
-GM_log("lendingclubaddcomments $Revision: 425 $");
-
 
 localStorage.removeItem("notesAllPrev");	//YYY delete these since we don't use them anymore
 
@@ -2323,16 +2321,20 @@ function getZip3(zip3)
 	return zip3obj[zip3];
 }
 
-
-function doLoanDetail()
+function doZipcode()
 {
-var DEBUG = debug(false, arguments);
+	var locationTD = $("th:contains('Location') + td");
+	var location = locationTD.text();
+	DEBUG && GM_log("location=", location);
 
-	var loanId = $(".memberHeader").html().match(/Borrower Member Loan\s(\d+)/)[1];
-	DEBUG && GM_log("loanId=", loanId);
+	var locationurl = sprintf("https://maps.google.com/maps?hl=en&q=%s&t=m&z=7", encodeURIComponent(location));
+	DEBUG && GM_log("locationurl=", locationurl);
 	
-	if(true)	// zipcode prefix (first 3 digits)
-	{
+	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
+}
+
+function doZipcodePrefix()
+{
 	var locationTD = $("th:contains('Location') + td");
 	var location = locationTD.text();
 	DEBUG && GM_log("location=", location);
@@ -2348,21 +2350,25 @@ var DEBUG = debug(false, arguments);
 	locationTD.append(' ' + zip3location);
 	
 	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
-	}
+}
 
+function doLoanDetail()
+{
+var DEBUG = debug(false, arguments);
+
+	var loanId = $(".memberHeader").html();
+	DEBUG && GM_log("1 loanId=", loanId);
+
+	loanId = loanId.match(/\d+/)
+	DEBUG && GM_log("2 loanId=", loanId);
+
+	if(loanId)
+		loanId = loanId[0];
+	DEBUG && GM_log("3 loanId=", loanId);
 	
-	if(false)	// changed to zipcode prefix (first 3 digits)
-	{
-	var locationTD = $("th:contains('Location') + td");
-	var location = locationTD.text();
-	DEBUG && GM_log("location=", location);
-
-	var locationurl = sprintf("https://maps.google.com/maps?hl=en&q=%s&t=m&z=7", encodeURIComponent(location));
-	DEBUG && GM_log("locationurl=", locationurl);
+	false && doZipcode();
+	true && doZipcodePrefix();
 	
-	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
-	}
-
 	if(false)	// what would we do with it?
 	{
 	var employerTD = $("th:contains('Current Employer') + td");
@@ -7020,12 +7026,11 @@ var DEBUG = debug(true, arguments);
 
 	function parseAccountNotesRawDataCsv(responseText)
 	{
-	var DEBUG = debug(false, arguments, false), FUNCNAME = funcname(arguments);
-		timestamp(FUNCNAME, true);
+	var DEBUG = debug(true, arguments, false), FUNCNAME = funcname(arguments);
 
-		timestamp(FUNCNAME, 'before csv2Array');
+		timestamp(FUNCNAME, 'before csv2Array()');
 		var csvArray = csv2Array(responseText);
-		timestamp(FUNCNAME, 'after csv2Array');
+		timestamp(FUNCNAME, 'after csv2Array()');
 
 		DEBUG && GM_log(FUNCNAME + " csvArray.length=" + csvArray.length);
 		false && DEBUG && GM_log(FUNCNAME + " csvArray=", csvArray);
