@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.231
+// @version        3.232
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -100,7 +100,7 @@ console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 460
 //GM_setValue("LOADSUMMARYNOTESATSTARTUP", true);
 
 var DEBUG = GM_getValue("DEBUG", false);
-var DEBUG = true;	// for testing
+//var DEBUG = true;	// for testing
 
 //if(DEBUG)
 //	unsafeWindow.jQuery = unsafeWindow.jQ = jQuery;
