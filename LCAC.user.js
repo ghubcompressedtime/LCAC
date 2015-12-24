@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.232
+// @version        3.233
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -81,6 +81,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+"use strict";
+
 /* TODO:
 
 FICO graph, indicate data out of date
@@ -89,7 +91,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4607 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4611 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -180,7 +182,7 @@ var notesRawDataURL = '/account/notesRawDataExtended.action';	// available from 
 
 var printStackTrace;
 if(DEBUG && unsafeWindow.console) {
-	printStackTrace = function(message)
+	printStackTrace = function printStackTrace_impl(message)
 	{
 		if(typeof message == 'undefined') message = "(no message)";
 
@@ -195,7 +197,7 @@ if(DEBUG && unsafeWindow.console) {
 	};
 }
 else
-	printStackTrace = function(){};
+	printStackTrace = function printStackTrace_null(){};
 
 
 function DEBUGcall()
@@ -1049,7 +1051,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		return null;
 	}
 
-	var interestRate = interestRate / 12;	// per period
+	interestRate = interestRate / 12;	// per period
 
 	var discountRateLeft = -10;	// per period
 	var discountRateRight = 10;	// per period
@@ -1111,6 +1113,9 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 			npvLeft = npvMid;
 		}
 	}
+
+	GM_Log("IRR() got to end, shouldn't get here, returning -1");
+	return -1;
 }
 
 function NPV(principal, accruedInterest, paymentAmount, interestRate, discountRate, serviceFeePercent)	// per period
@@ -1339,10 +1344,10 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	
 function doPaymentHistory(vars, datatable)
 {
-var DEBUG = debug(true, arguments);
+var DEBUG = debug(false, arguments);
 
 	var rs = datatable.getRecordSet();
-	GM_log("rs=", rs);
+	DEBUG && GM_log("rs=", rs);
 	var records = rs.getRecords();
 		
 	/* check for 2 rows with the same date and one has a pyment of 0.00
@@ -1350,7 +1355,7 @@ var DEBUG = debug(true, arguments);
 	 */
 	var duplicateCount = 0;
 	var record1 = records[records.length - 1];
-	GM_log("doPaymentHistory() first loop");
+	DEBUG && GM_log("doPaymentHistory() first loop");
 	for(var index = records.length - 2;
 		index >= 0;
 		index--)	// start at the end and go up so we can delete rows
@@ -1390,7 +1395,7 @@ var DEBUG = debug(true, arguments);
 //			record2.lcac_duplicateRow = true;
 			rs.deleteRecord(index + 1);
 	}
-	GM_log("duplicateCount=", duplicateCount);
+	DEBUG && GM_log("duplicateCount=", duplicateCount);
 	if(duplicateCount > 0)
 		window.status = duplicateCount + ' duplicate rows';
 
@@ -1426,14 +1431,14 @@ var DEBUG = debug(true, arguments);
 	var dueDate;
 	
 	/* There's always at least 1 row in the table */
-	GM_log("doPaymentHistory() second loop");
+	DEBUG && GM_log("doPaymentHistory() second loop");
 	var rowcount = -1;
 	for(var index = 0;
 		index < records.length;
 		index++)
 	{
 		var record = records[index];
-		GM_log("record=", record);
+		DEBUG && GM_log("record=", record);
 
 		/*
 		 * WARNING: principal but no interest possible when loan is in Default status
@@ -1441,17 +1446,17 @@ var DEBUG = debug(true, arguments);
 
 		// Wed Dec 31 1969 19:00:00 GMT-0500 .getTime() = 0
 		var dueDate0 = record._oData.dueDate;
-		GM_log("1 dueDate0=", dueDate0);
+		DEBUG && GM_log("1 dueDate0=", dueDate0);
 		dueDate0 = Y2K(dueDate0);
-		GM_log("2 dueDate0=", dueDate0);
+		DEBUG && GM_log("2 dueDate0=", dueDate0);
 
 		if(dueDate0)
 			dueDate = dueDate0;
 
 
 		var compDate = record._oData.compDate;
-		GM_log("typeof compDate=", typeof compDate);
-		GM_log("compDate=", compDate);
+		DEBUG && GM_log("typeof compDate=", typeof compDate);
+		DEBUG && GM_log("compDate=", compDate);
 
 		if(typeof compDate == 'string' && compDate.match(/^Multiple Dates/i))
 			continue;
@@ -1477,22 +1482,22 @@ var DEBUG = debug(true, arguments);
 		var interest = html2Value(record._oData.interest);
 		
 		var payment = {
-			dueDate: dueDate,
-			compDate: compDate,
-			status: status,
-			amount: amount,
-			principal: principal,
-			interest: interest,
+			dueDate: dueDate
+			, compDate: compDate
+			, status: status
+			, amount: amount
+			, principal: principal
+			, interest: interest
 		};
 
 		paymentHistory.push(payment);
 
-		GM_log("index=" + index + " rowcount=" + rowcount + " payment=", payment);
+		DEBUG && GM_log("index=" + index + " rowcount=" + rowcount + " payment=", payment);
 		if(rowcount == 0)
 		{
 			paymentHistory.first = payment;
 			
-			GM_log("payment.compDate=", payment.compDate);
+			DEBUG && GM_log("payment.compDate=", payment.compDate);
 			if(payment.status.match(/Completed|Received|Charged\s*Off/)
 			|| (payment.compDate != null && payment.status.match(/Processing/)))
 				paymentHistory.firstNotScheduledOrProcessing = payment;
@@ -1504,8 +1509,8 @@ var DEBUG = debug(true, arguments);
 			 * e.g. https://www.lendingclub.com/foliofn/loanPerf.action?loan_id=772278&order_id=3430255&note_id=5416959
 			 */
 
-			GM_log("paymentHistory=", paymentHistory);
-			GM_log("paymentHistory.first=", paymentHistory.first);
+			DEBUG && GM_log("paymentHistory=", paymentHistory);
+			DEBUG && GM_log("paymentHistory.first=", paymentHistory.first);
 			var dueDateMissedCutoff = new Date(paymentHistory.first.dueDate);
 			dueDateMissedCutoff.setMonth(dueDateMissedCutoff.getMonth() - 1);	// minus a month
 			dueDateMissedCutoff.setDate(dueDateMissedCutoff.getDate() - 28);	// minus a little more
@@ -1569,15 +1574,15 @@ var DEBUG = debug(true, arguments);
 	{
 		/*YYY Payments to Date (21) can be wrong, e.g. for late notes */
 		/* it's possible there's just one line if there's just one payment Note: this is projected payments not actual */
-		GM_log("paymentHistory.firstNotScheduledOrProcessing=", paymentHistory.firstNotScheduledOrProcessing);
+		DEBUG && GM_log("paymentHistory.firstNotScheduledOrProcessing=", paymentHistory.firstNotScheduledOrProcessing);
 		if(paymentHistory.firstNotScheduledOrProcessing)
 			arrearsDate = paymentHistory.firstNotScheduledOrProcessing.dueDate;
 		else
 		{
 			arrearsDate = new Date(vars.issuedDate);
 
-			GM_log("arrearsDate=", arrearsDate);
-			GM_log("paymentHistory.first.dueDate=", paymentHistory.first.dueDate);
+			DEBUG && GM_log("arrearsDate=", arrearsDate);
+			DEBUG && GM_log("paymentHistory.first.dueDate=", paymentHistory.first.dueDate);
 
 			/* no payments, due date a little slow in processing */
 			if(arrearsDate.getTime() < paymentHistory.first.dueDate.getTime())
@@ -1627,9 +1632,9 @@ var DEBUG = debug(true, arguments);
 	}
 
 	$.extend(vars, {
-		arrearsDate: arrearsDate,
-		arrearsString: arrearsString,
-		lateFees: lateFeeTotal,
+		arrearsDate: arrearsDate
+		, arrearsString: arrearsString
+		, lateFees: lateFeeTotal
 	});
 	
 	paymentHistory.firstCompletedOrIssuedDate =
@@ -1644,6 +1649,8 @@ var DEBUG = debug(true, arguments);
 
 function doLoanPerfPart2(vars)
 {
+	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
 	var datatable = unsafeWindow.YAHOO.loanperf.myTableId;
 
 	var paginator = datatable.get('paginator');
@@ -1659,8 +1666,12 @@ function doLoanPerfPart2(vars)
 	doLoanPerfPart2_0(vars);
 
 	var formatCellOrig = datatable.formatCell;
-	datatable.formatCell = function( elLiner , oRecord , oColumn )
+	datatable.formatCell = function doLoanPerfPart2_datatable_formatCell_impl( elLiner , oRecord , oColumn )
 	{
+		var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+		try
+		{
 		var key = oColumn.key;
 		var value = oRecord.getData(key);
 
@@ -1701,8 +1712,8 @@ status value= Completed - on time
 		else if(key == 'lateFees')
 		{
 			/* value is pre-formatted */
-			value = $(value).text().replace(/\$/, '');
-			if(value > 0)
+			var value2 = html2Value(value);
+			if(value2 > 0)
 				$(elLiner).closest("td").addClass("lcac_redLow");
 		}
 		else if(key == 'status')
@@ -1710,9 +1721,68 @@ status value= Completed - on time
 			highlightElements($(elLiner), highlightLoanPerfBAD, "lcac_redLow");
 			highlightElements($(elLiner), highlightLoanPerfWARNING, "lcac_yellowRev");
 		}
+		}
+		catch(ex)
+		{
+			console.log(FUNCNAME, "ex=", ex.stack);
+		}
 	};
 
-	datatable.render();
+/*XXX Multiple Dates columns are pre-rendered, e.g.
+
+<tr class='odd'>
+								<td class="numeric">02/19/2015</td>
+								<td class="numeric">Multiple Dates02-19-2015</td>
+								
+								<td class="numeric">3.5687871853</td>								
+								<td class="numeric">2.9891091051</td>
+								<td class="numeric">0.4926300253</td>
+								<td class="numeric">16.3306099022</td>
+								<td class="numeric">0.0870480549</td>
+								<td class="numeric">0.6275835239</td>
+								<td>Completed - Late (16-30 days)</td>
+								<td>02-19-2015</td>
+							</tr>
+							
+							
+							
+									
+										<tr class='9147611 odd' style="display: none;">
+											<td class="numeric"></td><!-- due day -->
+											<td class="numeric">3/11/15</td>
+											<td class="numeric">$1.74</td>
+											<td class="numeric">$1.74</td>
+											<td class="numeric">--</td>
+											<td class="numeric">$16.33</td>
+											<td class="numeric">--</td>
+											<td class="numeric">0</td>
+											<td>Completed</td>
+											<td>02-19-2015</td>
+										</tr>
+									
+										<tr class='9147611 odd' style="display: none;">
+											<td class="numeric"></td><!-- due day -->
+											<td class="numeric">2/23/15</td>
+											<td class="numeric">$1.83</td>
+											<td class="numeric">$1.25</td>
+											<td class="numeric">$0.49</td>
+											<td class="numeric">$18.07</td>
+											<td class="numeric">$0.09</td>
+											<td class="numeric">0.0008704805</td>
+											<td>Completed</td>
+											<td>02-19-2015</td>
+										</tr>
+
+*/
+
+	try
+	{
+		datatable.render();
+	}
+	catch(ex)
+	{
+		console.log(FUNCNAME, "ex=", ex.stack);
+	}
 
 	return paymentHistory;
 }
@@ -1893,11 +1963,16 @@ var DEBUG = debug(true, arguments);
 	GM_addStyle("div.lcac_receivedpayments { height:auto !important; min-height:265px; }");
 
 	/* add a table to put our stuff in, after any No Fee text that might be here */
-	var lcac_ReceivedPayments = $(":header:contains('Received Payments')").closest("div")
+	var lcac_ReceivedPayments = 
+		$(":header:contains('Received Payments')")
+			.closest("div");
+
 	GM_log("lcac_ReceivedPayments=", lcac_ReceivedPayments);
+
 	lcac_ReceivedPayments
 		.addClass('lcac_receivedpayments')
-		.append("<table class='lcac_ReceivedPayments'><tbody></tbody></table>");
+		.append("<table class='lcac_ReceivedPayments'><tbody></tbody></table>")
+	;
 		
 	/*XXX if you buy a note, then sell it, then buy it again, what value goes in amountLent? */
 
@@ -2263,8 +2338,8 @@ var DEBUG = debug(false, arguments);
 				var irr = null;
 
 			var saleFee = sprintf("%.2f", vars.sale_price / 100);
-			if(saleFee < .01)
-				saleFee = .01;
+			if(saleFee < 0.01)
+				saleFee = 0.01;
 			
 			$("table.lcac_ReceivedPayments tbody")
 				.append(''
@@ -3156,6 +3231,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	var str = links.join('')
 		+ links2.join('')
 		+ links3.join('')
+	;
 
 	DEBUG && GM_log(FUNCNAME + " str=" + str);
 
@@ -3436,9 +3512,9 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	return vars;
 }
 
-function highlightElements(elements, regex, className, DEBUG)
+function highlightElements(elements, regex, className, DEBUG0)
 {
-var DEBUG = debug(DEBUG, arguments);
+var DEBUG = debug(DEBUG0, arguments);
 
 	/*XXX this doesn't work in all cases e.g.
 <td>Charged Off
@@ -5808,9 +5884,6 @@ function doitReady()
 
 	setupfourclick();
 	
-//	"use strict";	// ewl 2012-12-02
-var DEBUG = debug(true, arguments);
-
 	if($(":contains(You've been logged out)").length > 0)
 	{
 		GM_log("You've been logged out");
