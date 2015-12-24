@@ -1730,6 +1730,8 @@ status value= Completed - on time
 
 /*XXX Multiple Dates columns are pre-rendered, e.g.
 
+https://www.lendingclub.com/account/loanPerf.action?loan_id=2227709&order_id=13254569&note_id=15976490
+
 <tr class='odd'>
 								<td class="numeric">02/19/2015</td>
 								<td class="numeric">Multiple Dates02-19-2015</td>
