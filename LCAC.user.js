@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.233
+// @version        3.234
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -81,7 +81,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-"use strict";
+//"use strict";
 
 /* TODO:
 
@@ -91,12 +91,12 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4612 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4613 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
 
-//GM_setValue("DEBUG", true);
+GM_setValue("DEBUG", true);
 //GM_setValue("TESTING", true);
 //GM_setValue("LOADSUMMARYVALUESATSTARTUP", true);
 //GM_setValue("LOADSUMMARYNOTESATSTARTUP", true);
@@ -110,14 +110,23 @@ var DEBUG = GM_getValue("DEBUG", false);
 var GM_log;
 try
 {
-	if(DEBUG && unsafeWindow.console)
+	GM_log = console.log.bind(console);
+
+	//XXX fails in Firefox: Error: Permission denied to access property 'length'
+	if(false && DEBUG && unsafeWindow.console)
 		GM_log = function GM_log_impl()
 		{
-			if(false)
-				arguments[0] = timeFormat() + ' ' + arguments[0];
+			try
+			{
+				if(false)
+					arguments[0] = timeFormat() + ' ' + arguments[0];
 
-			unsafeWindow.console.log.apply(unsafeWindow.console, arguments);	//YYY using "this" was causing problems in chrome
-			//XXX fails in Firefox: Error: Permission denied to access property 'length'
+				unsafeWindow.console.log.apply(unsafeWindow.console, arguments);	//YYY using "this" was causing problems in chrome
+			}
+			catch(ex)
+			{
+				console.log("unsafeWindow.console.log.apply() failed");
+			}
 		};
 }
 catch(ex)
