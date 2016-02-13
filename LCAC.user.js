@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.235
+// @version        3.237
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -91,7 +91,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4614 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4624 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -262,10 +262,12 @@ function debug(DEBUG2, arguments2, printArgs)
 
 		if(arguments2 && arguments2.length > 0 && printArgs)
 		{
-			GM_log("DEBUG " + FUNCNAME + " args=", Array.prototype.slice.call(arguments2, 0));	//YYY clone array for GM_log since it might change before we print it
+			var argumentsCopy = Array.prototype.slice.call(arguments2, 0);	//YYY clone array for GM_log since it might change before we print it
+			GM_log("DEBUG " + FUNCNAME + " args=", argumentsCopy);	
 
-			return FUNCNAME;
 		}
+
+		return FUNCNAME;
 	}
 	catch(ex)
 	{
@@ -1681,55 +1683,55 @@ function doLoanPerfPart2(vars)
 
 		try
 		{
-		var key = oColumn.key;
-		var value = oRecord.getData(key);
+			var key = oColumn.key;
+			var value = oRecord.getData(key);
 
-		formatCellOrig.apply(this, arguments);
+			formatCellOrig.apply(this, arguments);
 
-/* e.g.
-dueDate value= Date {Fri May 10 1912 00:00:00 GMT-0400 (Eastern Daylight Time)}
-compDate value= Date {Thu May 16 1912 00:00:00 GMT-0400 (Eastern Daylight Time)}
-paymentAmount value= 0.89
-principal value= <span title="$0.547519003448">$0.55</span>
-interest value= <span title="$0.342480996552">$0.34</span>
-lateFees value= <span title="$0.000000000000">$0.00</span>
-outstandingPrincipal value= <span title="$23.374991287351">$23.37</span>
-status value= Completed - on time
-*/
+	/* e.g.
+	dueDate value= Date {Fri May 10 1912 00:00:00 GMT-0400 (Eastern Daylight Time)}
+	compDate value= Date {Thu May 16 1912 00:00:00 GMT-0400 (Eastern Daylight Time)}
+	paymentAmount value= 0.89
+	principal value= <span title="$0.547519003448">$0.55</span>
+	interest value= <span title="$0.342480996552">$0.34</span>
+	lateFees value= <span title="$0.000000000000">$0.00</span>
+	outstandingPrincipal value= <span title="$23.374991287351">$23.37</span>
+	status value= Completed - on time
+	*/
 
-		if(key == 'compDate')
-		{
-//			if(oRecord._nCount > 0 && (!value || value.getTime() == 0))
-//				$(elLiner).closest("td").addClass("lcac_yellowRev");
-		}
-		else if(key == 'paymentAmount')
-		{
-			/*YYY sometimes it's off by a penny without payment plan or anything, some kind of rounding error? */
-			if(!value)	
-				$(elLiner).closest("td").addClass("lcac_zeropayment");
-			else if(value < vars.origPaymentAmount - 0.01)	
-				$(elLiner).closest("td").addClass("lcac_underpayment");
-			else if(value > vars.origPaymentAmount + 0.01)
-				$(elLiner).closest("td").addClass("lcac_overpayment");
-		}
-		else if(key == 'principal')
-		{
-			var value2 = html2Value(value);
-			if(value2 == 0)
-				$(elLiner).closest("td").addClass("lcac_zeropayment");
-		}
-		else if(key == 'lateFees')
-		{
-			/* value is pre-formatted */
-			var value2 = html2Value(value);
-			if(value2 > 0)
-				$(elLiner).closest("td").addClass("lcac_redLow");
-		}
-		else if(key == 'status')
-		{
-			highlightElements($(elLiner), highlightLoanPerfBAD, "lcac_redLow");
-			highlightElements($(elLiner), highlightLoanPerfWARNING, "lcac_yellowRev");
-		}
+			if(key == 'compDate')
+			{
+	//			if(oRecord._nCount > 0 && (!value || value.getTime() == 0))
+	//				$(elLiner).closest("td").addClass("lcac_yellowRev");
+			}
+			else if(key == 'paymentAmount')
+			{
+				/*YYY sometimes it's off by a penny without payment plan or anything, some kind of rounding error? */
+				if(!value)	
+					$(elLiner).closest("td").addClass("lcac_zeropayment");
+				else if(value < vars.origPaymentAmount - 0.01)	
+					$(elLiner).closest("td").addClass("lcac_underpayment");
+				else if(value > vars.origPaymentAmount + 0.01)
+					$(elLiner).closest("td").addClass("lcac_overpayment");
+			}
+			else if(key == 'principal')
+			{
+				var value2 = html2Value(value);
+				if(value2 == 0)
+					$(elLiner).closest("td").addClass("lcac_zeropayment");
+			}
+			else if(key == 'lateFees')
+			{
+				/* value is pre-formatted */
+				var value2 = html2Value(value);
+				if(value2 > 0)
+					$(elLiner).closest("td").addClass("lcac_redLow");
+			}
+			else if(key == 'status')
+			{
+				highlightElements($(elLiner), highlightLoanPerfBAD, "lcac_redLow");
+				highlightElements($(elLiner), highlightLoanPerfWARNING, "lcac_yellowRev");
+			}
 		}
 		catch(ex)
 		{
@@ -1807,6 +1809,32 @@ function doLoanPerfPart2_0(vars)
 	{
 		doLoanPerfPart2_2(vars);	// can be slow now that we compress stored note data
 	}, 1000);
+}
+
+function setTitle(title)
+{
+	var DEBUG = debug(false, arguments);
+	var FUNCNAME = funcname(arguments);
+
+	GM_log(FUNCNAME + " title=", title, "=", title.split(''));
+	GM_log(FUNCNAME + " setTitle.titleOrig=", setTitle.titleOrig);
+	GM_log(FUNCNAME + " document.title=", document.title);
+
+	if(!title)
+	{
+		if(setTitle.titleOrig != null)
+			document.title = setTitle.titleOrig;
+	}
+	else
+	{
+		if(setTitle.titleOrig == null)
+			setTitle.titleOrig = document.title;
+
+		document.title = title;
+	}
+	
+	GM_log(FUNCNAME + " AFTER setTitle.titleOrig=", setTitle.titleOrig);
+	GM_log(FUNCNAME + " AFTER document.title=", document.title);
 }
 
 function doLoanPerfPart2_1(vars)
@@ -1944,11 +1972,15 @@ var DEBUG = debug(true, arguments);
 	var comment = getComment(vars.loanId);
 	DEBUG && GM_log("comment=", comment);
 
+	setTitle(comment);
+
 	commentTextBox
 		.val(comment)
 		.on('change',
 			function(event)
 			{
+				setTitle(this.value);
+
 				setComment(this.name, this.value);
 			});
 
@@ -3525,7 +3557,8 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 function highlightElements(elements, regex, className, DEBUG0)
 {
-var DEBUG = debug(DEBUG0, arguments);
+var DEBUG = debug(false || DEBUG0, arguments);
+var FUNCNAME = funcname(arguments);
 
 	/*XXX this doesn't work in all cases e.g.
 <td>Charged Off
@@ -3539,6 +3572,8 @@ var DEBUG = debug(DEBUG0, arguments);
 		})
 		.each(function(index, element)
 		{
+//			DEBUG && GM_log(FUNCNAME + " element=", element);
+
 			element = $(element);
 
 			var html = element.html();
@@ -3548,40 +3583,46 @@ var DEBUG = debug(DEBUG0, arguments);
 				"<span class='" + className + "'>$1</span>"
 			);
 
-			DEBUG && GM_log("html=" + html);
+//			DEBUG && GM_log(FUNCNAME + " html=" + html);
 			if(html2 != html)	// only save it if it changed
 			{
-				DEBUG && GM_log("html2=" + html2);
+				DEBUG && GM_log(FUNCNAME + " rewriting, html=" + html + " html2=" + html2);
+
 				element.html(html2);
 			}
 		});
 }
 
 
-var highlightLoanPerfBAD;
-var highlightLoanPerfWARNING;
+var highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|Advanced collector|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
+var highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue|collection log)", "gi");
 
 function highlightLoanPerf()
 {
-var DEBUG = debug(false, arguments);
-
-	if(!highlightLoanPerfBAD)
-	{
-		highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|Advanced collector|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
-		highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue)", "gi");
-	}
-
+var DEBUG = debug(true, arguments);
+var FUNCNAME = funcname(arguments);
+	
 	var leafelements = $("div#content-wrap *:not(:has(*)), div#master_content *:not(:has(*))");	// foliofn and LC are different
+
+//	DEBUG && GM_log(FUNCNAME + " BEFORE leafelements=", leafelements);
 
 	// remove leafs that descend from the following elements
 	leafelements = leafelements.filter(
-		function() {
-			var parents = $(this).parents('.log-content, .collectionlog-header');
-			return parents.length < 1;	// true means keep
+		function leafelements_filter() {
+			var FUNCNAME = funcname(arguments);
+	
+			var parents = $(this).parents('.log-content');	// a descendent of these elements
+
+			if(parents.length == 0)
+				return true;	// keep it
+			
+			GM_log(FUNCNAME + " removing element, this=", this);
+			GM_log("parents=", parents);
+			return false;
 		}
 	);
-
-	DEBUG && GM_log("leafelements=", leafelements);
+	
+	DEBUG && GM_log(FUNCNAME + " AFTER leafelements=", leafelements);
 
 	/*
 	 * add some warnings to the top
@@ -3589,17 +3630,18 @@ var DEBUG = debug(false, arguments);
 	var warning = [], warning2 = [], warning3 = [];
 	
 	var htmlarr = [];
-	// set.html() returns only first element of jQuery set, so we have to loop to get it all
+	// $.html() returns only first element of jQuery set, so we have to loop to get it all
 	leafelements.each(function(){
 		htmlarr.push($(this).html())
 	});
-	DEBUG && GM_log("htmlarr=", htmlarr);
 
 	var html = htmlarr.join(" ");
-	DEBUG && GM_log("html=" + html);
 
 	html = html.replace(/(\s+)/gm, ' ');	// make one big line for multiline Recoveries match XXX should probably do this a little better
-	DEBUG && GM_log("html=" + html);
+	DEBUG && GM_log(FUNCNAME + " AFTER html=" + html);
+
+	if($("div.collectionlog-header").length > 0)
+		warning2.push("Collection Log");
 
 	if(html.match(/(charged\s*off)/i))
 		warning.push(RegExp.$1);
@@ -3653,6 +3695,9 @@ var DEBUG = debug(false, arguments);
 		warning2.push(RegExp.$1);
 
 	if(html.match(/(grace period)/i))
+		warning2.push(RegExp.$1);
+
+	if(html.match(/(payment failed)/i))
 		warning2.push(RegExp.$1);
 
 	if(html.match(/(Fully Paid)/))
@@ -5892,6 +5937,7 @@ function setupfourclick()
 function doitReady()
 {
 	var DEBUG = debug(true, arguments);
+	var FUNCNAME = funcname(arguments);
 
 	setupfourclick();
 	
@@ -8225,9 +8271,13 @@ function doitReady()
 	else if(href.match(/loanPerf.action/)
 		|| href.match(/browseNotesLoanPerf.action/))	// new link from Ffn Browse Notes
 	{
+		GM_log(FUNCNAME + " HERE 1");
+
 		if(href.match(/browseNotesLoanPerf.action/)
 		&& $(document).text().match(/An Error Has Occurred/i))
 		{
+			GM_log(FUNCNAME + " HERE 2");
+
 			var href2 = href.replace(/browseNotesLoanPerf.action/, "loanPerf.action");
 			if(false)
 			{
@@ -8238,18 +8288,11 @@ function doitReady()
 			{
 				$(":header:contains(An Error Has Occurred)").append(sprintf("<nobr> (No longer for sale? <a href='%s'>alternate link*)</a></nobr>", href2));
 			}
+
+			GM_log(FUNCNAME + " HERE 1 returning");
 			return;
 		}
-
-		var vars = doLoanPerfPart1(table);
-
-		if(IRLINKS)
-		$(":header:contains(Loan Performance)")
-			.append(
-				sprintf(" <a href='%s' target='_lcac_ir'>[IR]</a>",
-					sprintf("http://www.interestradar.com/loan?LoanID=%d", vars.loanId))
-				);
-
+		
 		// !important overrides column sort coloring
 		GM_addStyle(".lcac_green { color:green !important; }");
 		GM_addStyle(".lcac_greenrev { background-color:lightgreen !important; }");
@@ -8266,7 +8309,16 @@ function doitReady()
 		
 		GM_addStyle("table.plain-table {white-space: nowrap;}");	//YYY Collection Log date wraps on Chrome
 		
-		highlightLoanPerf();
+
+		GM_log(FUNCNAME + " HERE 1 1");
+		var vars = doLoanPerfPart1(table);
+
+		if(IRLINKS)
+		$(":header:contains(Loan Performance)")
+			.append(
+				sprintf(" <a href='%s' target='_lcac_ir'>[IR]</a>",
+					sprintf("http://www.interestradar.com/loan?LoanID=%d", vars.loanId))
+				);
 
 //		GM_addStyle(".moduleSmallNoHeight {height:auto !important; }");
 //		$(".moduleSmall").addClass("moduleSmallNoHeight");
@@ -8286,6 +8338,8 @@ function doitReady()
 						var paymentHistory = doLoanPerfPart2(vars);
 
 						doLoanPerfPart3(vars, paymentHistory);
+						
+						highlightLoanPerf();		// need to do this after doLoanPerfPart2() which causes entire Payment History to display
 					});
 			});
 		})(vars);
@@ -8295,10 +8349,14 @@ function doitReady()
 		|| href.match(/loanDetailFull.action/)	// Original Listing
 	)	
 	{
+		GM_log(FUNCNAME + " HERE 2");
+
 		doLoanDetail();
 	}
 	else if(href.match(/tradingInventory.action|newLoanSearch.action/))	// newLoanSearch.action = "Reset" on Browse Notes
 	{
+		GM_log(FUNCNAME + " HERE 3");
+
 		if(SAVEDSEARCHES)
 		{
 			$("div.search-container")
@@ -8655,6 +8713,8 @@ function doitReady()
 	}
 	else if(href.match(/account\/loans.action/))	// LC - My Notes
 	{
+		GM_log(FUNCNAME + " HERE 4");
+
 		$("div.master_wrapper").css("margin-left", "50px");	// YYY on my system, there's a lot of ununsed whitespace on the left
 //		$("div.master_wrapper").css("width", "auto");	// with this the headers don't wrap and then look wrong
 
@@ -11257,6 +11317,7 @@ function monthDiff(d1, d2) {
 function doitReadyTryCatch()
 {
 	var DEBUG = debug(true, arguments);
+	var FUNCNAME = funcname(arguments);
 
 	try
 	{
@@ -11264,7 +11325,7 @@ function doitReadyTryCatch()
 	}
 	catch(ex)
 	{
-		GM_log("doitReadyTryCatch() ex=" + ex + "\n" + ex.message + "\nex.stack=" + ex.stack + "--EOF--");
+		GM_log(FUNCNAME + " ex=" + ex + "\n" + ex.message + "\nex.stack=" + ex.stack + "--EOF--");
 	}
 }
 			
