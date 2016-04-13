@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.237
+// @version        3.238
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -58,6 +58,8 @@
 // @include        https://www.lendingclub.com/account/getLenderActivity.action
 
 // @include        file://*/tradingAccount.action*
+
+// @include        http://maps.huge.info/zip3.htm*
 
 // ==/UserScript==
 
@@ -5934,6 +5936,15 @@ function setupfourclick()
 	};
 }
 
+/* from http://stackoverflow.com/questions/2536379/difference-in-months-between-two-dates-in-javascript */
+function monthDiff(d1, d2) {
+    var months;
+    months = (d2.getFullYear() - d1.getFullYear()) * 12;
+    months -= d1.getMonth() + 1;
+    months += d2.getMonth();
+    return months <= 0 ? 0 : months;
+}
+
 function doitReady()
 {
 	var DEBUG = debug(true, arguments);
@@ -7672,6 +7683,41 @@ function doitReady()
 
 	var href = location.href;
 	GM_log("href=" + href);
+
+	function getURLParameters(url){
+
+		var result = {};
+		var searchIndex = url.indexOf("?");
+		if (searchIndex == -1 ) return result;
+		var sPageURL = url.substring(searchIndex +1);
+		var sURLVariables = sPageURL.split('&');
+		for (var i = 0; i < sURLVariables.length; i++)
+		{       
+			var sParameterName = sURLVariables[i].split('=');      
+			result[sParameterName[0]] = sParameterName[1];
+		}
+		return result;
+	}
+	
+	if(href.match(/http:\/\/maps.huge.info\/zip3.htm/))
+	{
+		var params = getURLParameters(href);
+		GM_log("HERE maps.huge href=", href, " params=", params);
+
+//		GM_log("findzip=", findzip);
+//		findzip(params.zip);
+
+		setTimeout(function()
+		{
+			$("input[name=zip]").val(params.zip3);
+			$("input[name=BUTTON]").click();
+		}, 1000);
+
+		//XXX
+		return;
+	}
+
+
 	if(href.match(/public\/about-us.action/))	// repurpose this page for our exports
 	{
 		if(window.name == 'LCAC_exportLocalStorage')
@@ -11302,15 +11348,6 @@ function doitReady()
 				});
 
 	}
-}
-
-/* from http://stackoverflow.com/questions/2536379/difference-in-months-between-two-dates-in-javascript */
-function monthDiff(d1, d2) {
-    var months;
-    months = (d2.getFullYear() - d1.getFullYear()) * 12;
-    months -= d1.getMonth() + 1;
-    months += d2.getMonth();
-    return months <= 0 ? 0 : months;
 }
 
 
