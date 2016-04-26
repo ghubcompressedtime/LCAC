@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.238
+// @version        3.239
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -93,7 +93,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4624 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4630 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -7373,7 +7373,7 @@ function doitReady()
 	{
 	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 				
-		var lenderActivityWindow = window.open(null, "_lenderActivity");
+		var lenderActivityWindow = window.open(null, "_blank");
 		if(lenderActivityWindow == null)
 		{
 			alert("Could not open a window. Are popups blocked?");
@@ -7384,34 +7384,42 @@ function doitReady()
 			"<head><title>Lender Activity</title></head>" +
 			"<body><pre id='LenderActivity'>");
 
-		// Note: "Activity older than 6 months is not available."
 
-		var endDate = new Date(2015, 01, 16);	// today (month is 0-based)
+		// from the 2nd to today, unless today is the first, in which case jump back a month
 
-		var startDate = new Date(endDate.getTime());
-		startDate.setDate(2);
+		var endDate = new Date();	// today, Note: month is 0-based
 
-		var count = 20;
+		var startDate = new Date(endDate);
 
+		if(startDate.getDate() == 1)
+			startDate.setMonth(startDate.getMonth() - 1);
+
+		startDate.setDate(2);	// 2nd day of the month
+				
 		loop();
 
+		// loop until we get an error Note: "Activity older than 6 months is not available."
 		function loop()
 		{
-			GM_log("startDate=", startDate, " endDate=", endDate);
-			getLenderActivity(startDate, endDate, true, function(responseText)
+			GM_log("getLenderActivityMulti_loop() startDate=", startDate, " endDate=", endDate);
+
+			getLenderActivity(startDate, endDate, true, function getLenderActivityMulti_getLenderActivity_callback(responseText)
 			{
-				GM_log("responseText=", responseText.substring(0, 256) + "...");
+				GM_log("getLenderActivityMulti_getLenderActivity_callback()");
+//				GM_log("responseText=", responseText.substring(0, 2048).trim() + "...");
 
 				if(!responseText)
 				{
-					lenderActivityWindow.document.write("--Error--");
+					lenderActivityWindow.document.write("--Error, responseText is blank--");
 					if(callback) callback(false);
 					return;
 				}
-				else if(responseText.match(/master_error-wrapper/))
+
+				if(responseText.match(/master_error-wrapper/))
 				{
+					GM_log("getLenderActivityMulti_getLenderActivity_callback() FOUND master_error-wrapper, returning");
 //					GM_log("responseText=", responseText);
-//					lenderActivityWindow.document.write("--EOF--");
+					lenderActivityWindow.document.write("--FOUND master_error-wrapper--");
 					if(callback) callback(true);
 					return;
 				}
@@ -7420,7 +7428,9 @@ function doitReady()
 
 				endDate = startDate;
 				startDate = new Date(endDate);
+
 				startDate.setDate(2);
+				endDate.setDate(1);
 				startDate.setMonth(startDate.getMonth() - 1);
 
 				loop();
@@ -7484,15 +7494,17 @@ function doitReady()
 	{
 	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
-		var now = new Date();
-		
 //		GM_setValue("LCAC_checkAccountActivityMade", null);	// for testing
 //		GM_setValue("LCAC_checkAccountActivityChecked", null);	// for testing
+		
+		var now = new Date();
+		var datecurr = now.toString();	// use PST or later so e.g. 3am gets yesterday's data
 
+		//save the date the last time we checked so we don't recaculate
 		var dateprev = GM_getValue("LCAC_checkAccountActivityMade");
-		var datecurr = now.toString();
-		GM_log(FUNCNAME + " dateprev=" + dateprev);
-		GM_log(FUNCNAME + " datecurr=" + datecurr);
+
+//		GM_log(FUNCNAME + " dateprev=" + dateprev);
+//		GM_log(FUNCNAME + " datecurr=" + datecurr);
 
 		if(dateprev == datecurr)
 		{
@@ -7524,12 +7536,12 @@ function doitReady()
 			
 			if(payments || fees)
 			{
-				var total = payments + fees;	// null + x = x
+				var total = payments + fees;	// note: null + x = x
 				DEBUG && GM_log(FUNCNAME + " total=", total);
 
 				GM_setValue("LCAC_checkAccountActivityMade", datecurr);
 				GM_setValue("LCAC_checkAccountActivityAmount", total);
-				callback(total);
+				callback(total, payments, fees);
 			}
 			else
 			{
@@ -7795,7 +7807,7 @@ function doitReady()
 					(LOOKUPBUTTONS ?
 					"<div style='text-align:center;'>" +
 					"<label>Payments Today:</label>" +
-					"<input class=LCAC_paymentsToday value='--' readonly style='width:4em;'/>" +
+					"<input class=LCAC_paymentsToday value='--' readonly style='width:7em;'/>" +
 					"<label>Lookup:</label>" +
 					"<input id='loanIdInput' type=text size=8 />" +
 					"<input id='loanIdButton' type=button value='Loan Id' />" +
@@ -7962,24 +7974,24 @@ function doitReady()
 			{
 				updateSummary(null);	// reset it
 
-				checkAccountActivity(function doSummaryValues_checkAccountActivity_callback(payments)
+				checkAccountActivity(function doSummaryValues_checkAccountActivity_callback(total, payments, fees)
 				{	
 				var DEBUG = debug(true, arguments);
 
-					if(payments === false)
-						payments = 'N/A';
-					else if(payments === null)
-						payments = '?';
+					if(total === false)
+						total = 'N/A';
+					else if(total === null)
+						total = '?';
 					else
-						payments = sprintf("$%0.2f", payments);
+						total = sprintf("$%0.2f%0.2f", payments, fees);	// e.g. $320.41-3.17
 
-					GM_log("payments=" + payments);
+					GM_log("total=" + total);
 
 					var input = $("input.LCAC_paymentsToday");
 					
 					GM_log("input=", input);
 
-					input.val(payments);
+					input.val(total);
 				});
 
 				getAccountSummary(
@@ -10821,6 +10833,7 @@ function doitReady()
 				getLenderActivityMulti(function getLenderActivityMulti_callback()
 				{
 					GM_log("getLenderActivityMulti_callback()");
+
 					button
 						.text("Download 6 months*")
 						.prop('disabled', false);
