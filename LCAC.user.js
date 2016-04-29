@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.239
+// @version        3.240
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -93,7 +93,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4630 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4631 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -2544,23 +2544,23 @@ var DEBUG = debug(false, arguments);
 }
 
 var WAITFORELEMENTTIMEOUT = 500;
-function waitForElement(selector, subselector, waitForElement_callback)
+function waitForElement(selector, subselector, waitForElement_callback/*element, subelement*/)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	var element = $(selector);
 	var subelement = subselector == null ? element : element.find(subselector);
 
-	if(subelement && subelement.length > 0)
+	if($(document).text().match(/504.*Gateway Timeout/))
 	{
-		DEBUG && GM_log(DEBUG + " calling callback()...");
-		waitForElement_callback(element, subelement);
+		GM_log(FUNCNAME + " found 504");
 		return;
 	}
 
-	if($(document).text().match(/504.*Gateway Timeout/))
+	if(subelement && subelement.length > 0)
 	{
-		DEBUG && GM_log(DEBUG + " found 504");
+		GM_log(FUNCNAME + " calling callback()...");
+		waitForElement_callback(element, subelement);
 		return;
 	}
 
@@ -2573,6 +2573,38 @@ var DEBUG = debug(false, arguments);
 		},
 		WAITFORELEMENTTIMEOUT);
 }
+
+
+function waitForElementLoop(selector, subselector, waitForElement_callback/*element, subelement*/, subelementprev)
+{
+var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+	var element = $(selector);
+	var subelement = subselector == null ? element : element.find(subselector);
+
+	if($(document).text().match(/504.*Gateway Timeout/))
+	{
+		GM_log(FUNCNAME + " found 504");
+		return;
+	}
+
+	if(subelement && subelement.length > 0
+	&& (subelementprev == null || subelement.get(0) != subelementprev.get(0)))
+	{
+		GM_log(FUNCNAME + " calling callback()...");
+		waitForElement_callback(element, subelement);
+	}
+
+	/* loop */
+//	DEBUG && GM_log(DEBUG + " looping... WAITFORELEMENTTIMEOUT=" + WAITFORELEMENTTIMEOUT);
+	setTimeout(
+		function()
+		{
+			waitForElementLoop(selector, subselector, waitForElement_callback, subelement);
+		},
+		WAITFORELEMENTTIMEOUT);
+}
+
 
 var TABLECANCHANGETIMEOUT = 500;
 /* YYY I suspect our reliance on the first row won't work if the table is sortable */
@@ -10839,6 +10871,44 @@ function doitReady()
 						.prop('disabled', false);
 				});
 			});
+
+		waitForElementLoop("#detailTable-div", "tbody.yui-dt-data tr", function getLenderActivity_callback(element, subelement)
+		{
+		var DEBUG = debug(false, arguments);
+
+			var trs = subelement;
+			DEBUG && GM_log("trs=", trs);
+
+			trs.each(function(index, element)
+			{
+				DEBUG && GM_log("index=", index, " element=", element);
+				
+				var tr = $(element);
+
+				var loanId = tr.find("td.yui-dt-col-loanId").text();
+				var orderId = tr.find("td.yui-dt-col-orderId").text();
+				var noteId = tr.find("td.yui-dt-col-noteId").text();
+				
+				DEBUG && GM_log("loanId=", loanId, " orderId=", orderId, " noteId=", noteId);
+
+				var loanPerfURL = loanPerfURL2(loanId, orderId, noteId);
+				
+				DEBUG && GM_log("loanPerfURL=", loanPerfURL);
+
+				var element = tr.find("td.yui-dt-col-noteId");
+				//get innermost element
+				while(true)
+				{
+					var child = element.children(":first");
+					if(child.length == 0)
+						break;
+					element = child;
+				}
+				DEBUG && GM_log("element=", element);
+
+				element.wrapInner(sprintf("<a href=%s></a>", loanPerfURL));
+			});
+		});
 	}
 	else if(href.match(/orderDetails.action/))	// scrape the Order Details
 	{
