@@ -11,9 +11,10 @@
 // @downloadURL    https://github.com/ghubcompressedtime/LCAC/raw/master/LCAC.user.js
 
 // @require        http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
-// @require        http://raw.github.com/kvz/phpjs/master/functions/strings/sprintf.js
-// @require        http://raw.github.com/kvz/phpjs/master/functions/strings/vsprintf.js
-// @require        http://raw.github.com/kvz/phpjs/master/functions/strings/sscanf.js
+
+// @require        https://raw.githubusercontent.com/ghubcompressedtime/locutus/master/src/php/strings/sprintf.js
+// @require        https://raw.githubusercontent.com/ghubcompressedtime/locutus/master/src/php/strings/sscanf.js
+
 // @require        http://mottie.github.com/tablesorter/js/jquery.tablesorter.js
 // @require        http://omnipotent.net/jquery.sparkline/2.1.2/jquery.sparkline.js
 // @require        https://raw.github.com/yckart/jquery.storage.js/master/jquery.storage.js
@@ -93,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4631 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4633 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -848,361 +849,386 @@ DEBUG && GM_log(DEBUG + " value=", value, " type=", type);
 	return value;
 }
 
-/*
- * adapted from http://www.8tiny.com/source/phpmyadmin/libraries/PHPExcel/PHPExcel/Calculation/Functions.php.html
- * Calculates the payment for a loan based on constant payments and a constant interest rate.
- * http://office.microsoft.com/en-ca/excel-help/pmt-HP005209215.aspx?CTT=1
- */
-function PMT(rate, nper, pv, fv, type)
+var PaymentCalcs = new function PaymentCalcs_impl()
 {
-	if(typeof fv == 'undefined') fv = 0;
-	if(typeof type == 'undefined') type = 0;
+	GM_log("PaymentCalcs_impl()");
 
-	return (-fv - pv * Math.pow(1 + rate, nper)) / (1 + rate * type) / ((Math.pow(1 + rate, nper) - 1) / rate);
-}
-
-function _interestAndPrincipal(rate, per, nper, pv, fv, type)
-{
-var DEBUG = debug(false, arguments);
-
-	if(typeof rate == 'undefined') rate = 0;
-	if(typeof per == 'undefined') per = 0;
-	if(typeof nper == 'undefined') nper = 0;
-	if(typeof pv == 'undefined') pv = 0;
-	if(typeof fv == 'undefined') fv = 0;
-	if(typeof type == 'undefined') type = 0;
-
-	var pmt = PMT(rate, nper, pv, fv, type);
-
-	var interest = 0, principal = 0;
-	var capital = pv;
-	for(var count = 1; count <= per; count++)
+	/*
+	 * adapted from http://www.8tiny.com/source/phpmyadmin/libraries/PHPExcel/PHPExcel/Calculation/Functions.php.html
+	 * Calculates the payment for a loan based on constant payments and a constant interest rate.
+	 * http://office.microsoft.com/en-ca/excel-help/pmt-HP005209215.aspx?CTT=1
+	 */
+	function PMT(rate, nper, pv, fv, type)
 	{
-		interest = (type && count == 0) ? 0 : -capital * rate;
-        principal = pmt - interest;
-        capital += principal;
+		if(typeof fv == 'undefined') fv = 0;
+		if(typeof type == 'undefined') type = 0;
+
+		return (-fv - pv * Math.pow(1 + rate, nper)) / (1 + rate * type) / ((Math.pow(1 + rate, nper) - 1) / rate);
 	}
-
-	DEBUG && GM_log("_interestAndPrincipal() returning interest=", interest, " principal=", principal);
-
-	return [interest, principal];
-}
-
-/*
- * Returns the number of periods for a cash flow with constant periodic payments (annuities), and interest rate.
- * From http://www.8tiny.com/source/phpmyadmin/nav.html?libraries/PHPExcel/PHPExcel/Calculation/Functions.php.html
- */
-/*YYY this wrong syntax ff ignores but causes unhelpful "Unexpected token =" error message in chrome
-function NPER(rate = 0, pmt = 0, pv = 0, fv = 0, type = 0)	
-*/
-function NPER(rate, pmt, pv, fv, type)
-{
-var DEBUG = debug(false, arguments);
-
-	if(typeof rate == 'undefined') rate = 0;
-	if(typeof pmt == 'undefined') pmt = 0;
-	if(typeof pv == 'undefined') pv = 0;
-	if(typeof fv == 'undefined') fv = 0;
-	if(typeof type == 'undefined') type = 0;
-
-	if(rate != 0)
-	{
-		if(pmt == 0 && pv == 0)
-			throw "pmt=" + pmt + " pv=" + pv;
-
-		var value =
-			Math.log((pmt * (1 + rate * type) / rate - fv) / (pv + pmt * (1 + rate * type) / rate))
-				/ Math.log(1 + rate);
-
-		DEBUG && GM_log("1 value=", value);
-		return value;
-	}
-	else
-	{
-		if(pmt == 0)
-			throw "rate=" + rate + " pmt=" + pmt;
-
-		var value = (-pv - fv) / pmt;
-		DEBUG && GM_log("2 value=", value);
-		return value;
-	}
-}
-
-/*
- * Returns the interest payment for a given period for an investment based on periodic, constant payments and a constant interest rate.
- * http://office.microsoft.com/en-ca/excel-help/ipmt-HP005209145.aspx?CTT=1
- */
-function IPMT(rate, per, nper, pv, fv, type)
-{
-	if(typeof fv == 'undefined') fv = 0;
-	if(typeof type == 'undefined') type = 0;
-
-	if(type != 0 && type != 1)
-	{
-		printStackTrace("type=" + type + ", per=" + per + " nper=" + nper + " rate=" + rate + " pv=" + pv + " fv=" + fv);
-		throw "type=" + type + ", per=" + per + " nper=" + nper + " rate=" + rate + " pv=" + pv + " fv=" + fv;
-	}
-
-	if(per <= 0 || per > nper)
-	{
-		printStackTrace("per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type);
-		throw "per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type;
-	}
-
-	return _interestAndPrincipal(rate, per, nper, pv, fv, type)[0];
-}
-
-/*
- * Returns the payment on the principal for a given period for an investment based on periodic, constant payments and a constant interest rate.
- * http://office.microsoft.com/en-ca/excel-help/ppmt-HP005209218.aspx?CTT=1
- */
-function PPMT(rate, per, nper, pv, fv, type)
-{
-	if(typeof fv == 'undefined') fv = 0;
-	if(typeof type == 'undefined') type = 0;
 	
-	if(type != 0 && type != 1)
-		throw "type=" + type;
+	this.PMT = PMT;
 
-	if(per <= 0 || per > nper)
+	function _interestAndPrincipal(rate, per, nper, pv, fv, type)
 	{
-		printStackTrace("per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type);
-		throw "per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type;
-	}
+	var DEBUG = debug(false, arguments);
 
-	return _interestAndPrincipal(rate, per, nper, pv, fv, type)[1];
-}
+		if(typeof rate == 'undefined') rate = 0;
+		if(typeof per == 'undefined') per = 0;
+		if(typeof nper == 'undefined') nper = 0;
+		if(typeof pv == 'undefined') pv = 0;
+		if(typeof fv == 'undefined') fv = 0;
+		if(typeof type == 'undefined') type = 0;
 
-/*
- * Returns the cumulative principal paid on a loan between start_period and end_period.
- * http://office.microsoft.com/en-ca/excel-help/cumprinc-HP005209039.aspx
- */
-function CUMPRINC(rate, nper, pv, start, end, type)
-{
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+		var pmt = PMT(rate, nper, pv, fv, type);
 
-	if(typeof type == 'undefined') type = 0;
-	if(typeof end == 'undefined') end = nper;
-
-	if(type != 0 && type != 1)
-		throw "type=" + type;
-	
-	if(start < 1 || start > end)
-	{
-		printStackTrace(FUNCNAME + " start=" + start + " end=" + end);
-		throw FUNCNAME + " start=" + start + " end=" + end;
-	}
-
-	var principal = 0;
-	var interest = 0;
-	for(var per = start; per <= end; ++per)
-	{
-		var ppmt;
-
-		principal += ppmt = PPMT(rate, per, nper, pv, 0, type);
-
-		var ipmt;
-
-		interest += ipmt = IPMT(rate, per, nper, pv, 0, type);
-		
-		DEBUG && GM_log("per=", per, " ppmt=", ppmt, " ipmt=", ipmt);
-	}
-
-	return principal;
-}
-
-/*
- * http://www.8tiny.com/source/phpmyadmin/nav.html?libraries/PHPExcel/PHPExcel/Calculation/Functions.php.html
- * Returns the cumulative interest paid on a loan between start_period and end_period.
- */
-function CUMIPMT(rate, nper, pv, start, end, type)
-{
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
-
-	if(typeof type == 'undefined') type = 0;
-	if(typeof end == 'undefined') end = nper;
-
-	if(type != 0 && type != 1)
-		throw "type=" + type;
-
-	if(start < 1 || start > end)
-	{
-		printStackTrace(FUNCNAME + " start=" + start + " end=" + end);
-//		throw FUNCNAME + " start=" + start + " end=" + end;
-		return null;
-	}
-
-	var interest = 0;
-	for (var per = start; per <= end; ++per) {
-		var ipmt;
-
-		interest += ipmt = IPMT(rate, per, nper, pv, 0, type);
-		
-//		DEBUG && GM_log("per=", per, " ipmt=", ipmt);
-	}
-
-	return interest;
-}
-
-
-function IRR(principal, accruedInterest, paymentAmount, interestRate, price, serviceFeePercent)
-{
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
-
-	if(typeof serviceFeePercent == 'undefined' || serviceFeePercent == null) serviceFeePercent = 0.01;
-
-	if(principal <= 0)
-	{
-		printStackTrace(FUNCNAME + " principal=" + principal);
-//		throw FUNCNAME + " principal=" + principal;
-		return -1;
-	}
-	if(paymentAmount <= 0)
-	{
-		printStackTrace(FUNCNAME + " paymentAmount=" + paymentAmount);
-//		throw FUNCNAME + " paymentAmount=" + paymentAmount;
-		return null;
-	}
-
-	interestRate = interestRate / 12;	// per period
-
-	var discountRateLeft = -10;	// per period
-	var discountRateRight = 10;	// per period
-
-	var npvLeft = NPV(principal, accruedInterest, paymentAmount, interestRate, discountRateLeft, serviceFeePercent) - price;
-	var npvRight = NPV(principal, accruedInterest, paymentAmount, interestRate, discountRateRight, serviceFeePercent) - price;
-
-	for(var count = 0; true; count++)
-	{
-		DEBUG && GM_log("count=", count);
-		DEBUG && GM_log(" discountRateLeft=", discountRateLeft * 12,  "  npvLeft=", npvLeft);
-		DEBUG && GM_log("discountRateRight=", discountRateRight * 12, " npvRight=", npvRight);
-
-		if(isNaN(npvLeft) || isNaN(npvRight))
+		var interest = 0, principal = 0;
+		var capital = pv;
+		for(var count = 1; count <= per; count++)
 		{
-			GM_log(FUNCNAME + " !!!NaN!!!, count=", count);
-			GM_log("arguments=", arguments);
-			GM_log("npvLeft=", npvLeft, " npvRight=", npvRight);
-			GM_log("discountRateLeft=", discountRateLeft * 12, " discountRateRight=", discountRateRight * 12);
-			return null;
+			interest = (type && count == 0) ? 0 : -capital * rate;
+			principal = pmt - interest;
+			capital += principal;
 		}
 
-		if(npvLeft * npvRight > 0)	// same sign, we made a mistake
+		DEBUG && GM_log("_interestAndPrincipal() returning interest=", interest, " principal=", principal);
+
+		return [interest, principal];
+	}
+
+	this._interestAndPrincipal = _interestAndPrincipal;
+
+	/*
+	 * Returns the number of periods for a cash flow with constant periodic payments (annuities), and interest rate.
+	 * From http://www.8tiny.com/source/phpmyadmin/nav.html?libraries/PHPExcel/PHPExcel/Calculation/Functions.php.html
+	 */
+	/*YYY this wrong syntax ff ignores but causes unhelpful "Unexpected token =" error message in chrome
+	function NPER(rate = 0, pmt = 0, pv = 0, fv = 0, type = 0)	
+	*/
+	function NPER(rate, pmt, pv, fv, type)
+	{
+	var DEBUG = debug(false, arguments);
+
+		if(typeof rate == 'undefined') rate = 0;
+		if(typeof pmt == 'undefined') pmt = 0;
+		if(typeof pv == 'undefined') pv = 0;
+		if(typeof fv == 'undefined') fv = 0;
+		if(typeof type == 'undefined') type = 0;
+
+		if(rate != 0)
 		{
-			GM_log(FUNCNAME + " npvLeft and npvRight SAME SIGN, count=", count);
-			GM_log("arguments=", arguments);
-			GM_log("npvLeft=", npvLeft, " npvRight=", npvRight);
-			GM_log("discountRateLeft=", discountRateLeft * 12, " discountRateRight=", discountRateRight * 12);
-			return null;
-		}
+			if(pmt == 0 && pv == 0)
+				throw "pmt=" + pmt + " pv=" + pv;
 
-		var rateDiff = discountRateRight - discountRateLeft;
-		var npvDiff = npvLeft - npvRight;
+			var value =
+				Math.log((pmt * (1 + rate * type) / rate - fv) / (pv + pmt * (1 + rate * type) / rate))
+					/ Math.log(1 + rate);
 
-		if(count > 30 || Math.abs(rateDiff) < 0.0001 || Math.abs(npvDiff) < 0.0001)	// close enough
-		{
-			DEBUG && GM_log("rateDiff=", rateDiff);
-			DEBUG && GM_log("npvDiff=", npvDiff);
-			DEBUG && GM_log("returning discountRateLeft * 12=", discountRateLeft * 12);
-			return discountRateLeft * 12;	// per period * 12 = yearly
-		}
-
-		var discountRateMid = (discountRateLeft + discountRateRight) / 2;
-		var npvMid = NPV(principal, accruedInterest, paymentAmount, interestRate, discountRateMid, serviceFeePercent) - price;
-
-		DEBUG && GM_log("discountRateMid=", discountRateMid * 12, " npvMid=", npvMid);
-
-		// adjust one of the guesses
-		if(npvMid * npvRight > 0)	// same sign
-		{
-			DEBUG && GM_log("adjusting right end");
-			discountRateRight = discountRateMid;
-			npvRight = npvMid;
+			DEBUG && GM_log("1 value=", value);
+			return value;
 		}
 		else
 		{
-			DEBUG && GM_log("adjusting left end");
-			discountRateLeft = discountRateMid;
-			npvLeft = npvMid;
+			if(pmt == 0)
+				throw "rate=" + rate + " pmt=" + pmt;
+
+			var value = (-pv - fv) / pmt;
+			DEBUG && GM_log("2 value=", value);
+			return value;
 		}
 	}
+	
+	this.NPER = NPER;
 
-	GM_Log("IRR() got to end, shouldn't get here, returning -1");
-	return -1;
-}
-
-function NPV(principal, accruedInterest, paymentAmount, interestRate, discountRate, serviceFeePercent)	// per period
-{
-var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
-
-	if(principal <= 0 || paymentAmount <= 0)
+	/*
+	 * Returns the interest payment for a given period for an investment based on periodic, constant payments and a constant interest rate.
+	 * http://office.microsoft.com/en-ca/excel-help/ipmt-HP005209145.aspx?CTT=1
+	 */
+	function IPMT(rate, per, nper, pv, fv, type)
 	{
-		printStackTrace(FUNCNAME + " principal=" + principal + " paymentAmount=" + paymentAmount);
-//		throw FUNCNAME + " paymentAmount " + paymentAmount + " <= 0";
-		return null;
-	}
+		if(typeof fv == 'undefined') fv = 0;
+		if(typeof type == 'undefined') type = 0;
 
-	var discountRateNegative = discountRate < 0;
-	if(discountRateNegative)
-		discountRate = -discountRate;
-
-	discountRate = 1 + discountRate;
-
-	/* multiply every time through the loop, POW(discountRate, count) */
-//	var discountRatePOW = 1.0;		// first payment at begining of period
-	var discountRatePOW = discountRate;		// first payment at begining of period
-		
-	var totalPaymentsPV = 0;
-	var count = 0;
-	while(principal > 0 && ++count < 100)
-	{
-		if((DEBUG && count < 3) || count > 90)
-			GM_log("count=", count, " principal=", principal, " discountRateNegative=", discountRateNegative, " discountRate=", discountRate, " discountRatePOW=", discountRatePOW);
-		
-		var oneMonthsInterest = principal * interestRate;
-
-		principal += oneMonthsInterest;
-		
-		var paymentAmount2 = Math.min(principal, paymentAmount);
-		
-		principal -= paymentAmount2;
-		
-		if(false)
-		if(accruedInterest > oneMonthsInterest)	// assume first payment pays off all accrued interest
+		if(type != 0 && type != 1)
 		{
-			var count2 = 0;
-			var accruedInterestAdjustment = 0;
-			while(accruedInterest > oneMonthsInterest)
-			{
-				if(++count2 > 100)
-				{
-					GM_log("count2=", count2, " arguments=", arguments);
-					break;
-				}
+			printStackTrace("type=" + type + ", per=" + per + " nper=" + nper + " rate=" + rate + " pv=" + pv + " fv=" + fv);
+			throw "type=" + type + ", per=" + per + " nper=" + nper + " rate=" + rate + " pv=" + pv + " fv=" + fv;
+		}
 
-				accruedInterestAdjustment += oneMonthsInterest;
-				accruedInterest -= oneMonthsInterest;
+		if(per <= 0 || per > nper)
+		{
+			printStackTrace("per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type);
+			throw "per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type;
+		}
+
+		return _interestAndPrincipal(rate, per, nper, pv, fv, type)[0];
+	};
+	
+	this.IPMT = IPMT;
+
+	/*
+	 * Returns the payment on the principal for a given period for an investment based on periodic, constant payments and a constant interest rate.
+	 * http://office.microsoft.com/en-ca/excel-help/ppmt-HP005209218.aspx?CTT=1
+	 */
+	function PPMT(rate, per, nper, pv, fv, type)
+	{
+		if(typeof fv == 'undefined') fv = 0;
+		if(typeof type == 'undefined') type = 0;
+		
+		if(type != 0 && type != 1)
+			throw "type=" + type;
+
+		if(per <= 0 || per > nper)
+		{
+			printStackTrace("per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type);
+			throw "per=" + per + " nper=" + nper + ", rate=" + rate + " pv=" + pv + " fv=" + fv + " type=" + type;
+		}
+
+		return _interestAndPrincipal(rate, per, nper, pv, fv, type)[1];
+	};
+
+	this.PPMT = PPMT;
+
+	/*
+	 * Returns the cumulative principal paid on a loan between start_period and end_period.
+	 * http://office.microsoft.com/en-ca/excel-help/cumprinc-HP005209039.aspx
+	 */
+	function CUMPRINC(rate, nper, pv, start, end, type)
+	{
+	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+		if(typeof type == 'undefined') type = 0;
+		if(typeof end == 'undefined') end = nper;
+
+		if(type != 0 && type != 1)
+			throw "type=" + type;
+		
+		if(start < 1 || start > end)
+		{
+			printStackTrace(FUNCNAME + " start=" + start + " end=" + end);
+			throw FUNCNAME + " start=" + start + " end=" + end;
+		}
+
+		var principal = 0;
+		var interest = 0;
+		for(var per = start; per <= end; ++per)
+		{
+			var ppmt;
+
+			principal += ppmt = PPMT(rate, per, nper, pv, 0, type);
+
+			var ipmt;
+
+			interest += ipmt = IPMT(rate, per, nper, pv, 0, type);
+			
+			DEBUG && GM_log("per=", per, " ppmt=", ppmt, " ipmt=", ipmt);
+		}
+
+		return principal;
+	}
+	
+	this.CUMPRINC = CUMPRINC;
+
+	/*
+	 * http://www.8tiny.com/source/phpmyadmin/nav.html?libraries/PHPExcel/PHPExcel/Calculation/Functions.php.html
+	 * Returns the cumulative interest paid on a loan between start_period and end_period.
+	 */
+	function CUMIPMT(rate, nper, pv, start, end, type)
+	{
+	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+		if(typeof type == 'undefined') type = 0;
+		if(typeof end == 'undefined') end = nper;
+
+		if(type != 0 && type != 1)
+			throw "type=" + type;
+
+		if(start < 1 || start > end)
+		{
+			printStackTrace(FUNCNAME + " start=" + start + " end=" + end);
+	//		throw FUNCNAME + " start=" + start + " end=" + end;
+			return null;
+		}
+
+		var interest = 0;
+		for (var per = start; per <= end; ++per) {
+			var ipmt;
+
+			interest += ipmt = IPMT(rate, per, nper, pv, 0, type);
+			
+	//		DEBUG && GM_log("per=", per, " ipmt=", ipmt);
+		}
+
+		return interest;
+	}
+	
+	this.CUMIPMT = CUMIPMT;
+
+
+	function IRR(principal, accruedInterest, paymentAmount, interestRate, price, serviceFeePercent)
+	{
+	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+		if(typeof serviceFeePercent == 'undefined' || serviceFeePercent == null) serviceFeePercent = 0.01;
+
+		if(principal <= 0)
+		{
+			printStackTrace(FUNCNAME + " principal=" + principal);
+	//		throw FUNCNAME + " principal=" + principal;
+			return -1;
+		}
+		if(paymentAmount <= 0)
+		{
+			printStackTrace(FUNCNAME + " paymentAmount=" + paymentAmount);
+	//		throw FUNCNAME + " paymentAmount=" + paymentAmount;
+			return null;
+		}
+
+		interestRate = interestRate / 12;	// per period
+
+		var discountRateLeft = -10;	// per period
+		var discountRateRight = 10;	// per period
+
+		var npvLeft = NPV(principal, accruedInterest, paymentAmount, interestRate, discountRateLeft, serviceFeePercent) - price;
+		var npvRight = NPV(principal, accruedInterest, paymentAmount, interestRate, discountRateRight, serviceFeePercent) - price;
+
+		for(var count = 0; true; count++)
+		{
+			DEBUG && GM_log("count=", count);
+			DEBUG && GM_log(" discountRateLeft=", discountRateLeft * 12,  "  npvLeft=", npvLeft);
+			DEBUG && GM_log("discountRateRight=", discountRateRight * 12, " npvRight=", npvRight);
+
+			if(isNaN(npvLeft) || isNaN(npvRight))
+			{
+				GM_log(FUNCNAME + " !!!NaN!!!, count=", count);
+				GM_log("arguments=", arguments);
+				GM_log("npvLeft=", npvLeft, " npvRight=", npvRight);
+				GM_log("discountRateLeft=", discountRateLeft * 12, " discountRateRight=", discountRateRight * 12);
+				return null;
 			}
 
-			DEBUG && GM_log(FUNCNAME + " accruedInterest adjustment=", accruedInterestAdjustment);
-			paymentAmount2 += accruedInterestAdjustment;
-					
-			accruedInterest = 0;	// throw away the remainder, since it will be included in first payment
+			if(npvLeft * npvRight > 0)	// same sign, we made a mistake
+			{
+				GM_log(FUNCNAME + " npvLeft and npvRight SAME SIGN, count=", count);
+				GM_log("arguments=", arguments);
+				GM_log("npvLeft=", npvLeft, " npvRight=", npvRight);
+				GM_log("discountRateLeft=", discountRateLeft * 12, " discountRateRight=", discountRateRight * 12);
+				return null;
+			}
+
+			var rateDiff = discountRateRight - discountRateLeft;
+			var npvDiff = npvLeft - npvRight;
+
+			if(count > 30 || Math.abs(rateDiff) < 0.0001 || Math.abs(npvDiff) < 0.0001)	// close enough
+			{
+				DEBUG && GM_log("rateDiff=", rateDiff);
+				DEBUG && GM_log("npvDiff=", npvDiff);
+				DEBUG && GM_log("returning discountRateLeft * 12=", discountRateLeft * 12);
+				return discountRateLeft * 12;	// per period * 12 = yearly
+			}
+
+			var discountRateMid = (discountRateLeft + discountRateRight) / 2;
+			var npvMid = NPV(principal, accruedInterest, paymentAmount, interestRate, discountRateMid, serviceFeePercent) - price;
+
+			DEBUG && GM_log("discountRateMid=", discountRateMid * 12, " npvMid=", npvMid);
+
+			// adjust one of the guesses
+			if(npvMid * npvRight > 0)	// same sign
+			{
+				DEBUG && GM_log("adjusting right end");
+				discountRateRight = discountRateMid;
+				npvRight = npvMid;
+			}
+			else
+			{
+				DEBUG && GM_log("adjusting left end");
+				discountRateLeft = discountRateMid;
+				npvLeft = npvMid;
+			}
 		}
 
-		var paymentAmountPV = discountRateNegative ? (paymentAmount2 * discountRatePOW) : (paymentAmount2 / discountRatePOW);
-		DEBUG && GM_log("paymentAmount2=", paymentAmount2, " paymentAmountPV=", paymentAmountPV);
-
-		paymentAmountPV *= (1.0 - serviceFeePercent);
-
-		totalPaymentsPV += paymentAmountPV;
-		
-		discountRatePOW *= discountRate;
+		GM_Log("IRR() got to end, shouldn't get here, returning -1");
+		return -1;
 	}
+	
+	this.IRR = IRR;
 
-	DEBUG && GM_log("totalPaymentsPV=", totalPaymentsPV);
-	return totalPaymentsPV;
-}
+	function NPV(principal, accruedInterest, paymentAmount, interestRate, discountRate, serviceFeePercent)	// per period
+	{
+	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+
+		if(principal <= 0 || paymentAmount <= 0)
+		{
+			printStackTrace(FUNCNAME + " principal=" + principal + " paymentAmount=" + paymentAmount);
+	//		throw FUNCNAME + " paymentAmount " + paymentAmount + " <= 0";
+			return null;
+		}
+
+		var discountRateNegative = discountRate < 0;
+		if(discountRateNegative)
+			discountRate = -discountRate;
+
+		discountRate = 1 + discountRate;
+
+		/* multiply every time through the loop, POW(discountRate, count) */
+	//	var discountRatePOW = 1.0;		// first payment at begining of period
+		var discountRatePOW = discountRate;		// first payment at begining of period
+			
+		var totalPaymentsPV = 0;
+		var count = 0;
+		while(principal > 0 && ++count < 100)
+		{
+			if((DEBUG && count < 3) || count > 90)
+				GM_log("count=", count, " principal=", principal, " discountRateNegative=", discountRateNegative, " discountRate=", discountRate, " discountRatePOW=", discountRatePOW);
+			
+			var oneMonthsInterest = principal * interestRate;
+
+			principal += oneMonthsInterest;
+			
+			var paymentAmount2 = Math.min(principal, paymentAmount);
+			
+			principal -= paymentAmount2;
+			
+			if(false)
+			if(accruedInterest > oneMonthsInterest)	// assume first payment pays off all accrued interest
+			{
+				var count2 = 0;
+				var accruedInterestAdjustment = 0;
+				while(accruedInterest > oneMonthsInterest)
+				{
+					if(++count2 > 100)
+					{
+						GM_log("count2=", count2, " arguments=", arguments);
+						break;
+					}
+
+					accruedInterestAdjustment += oneMonthsInterest;
+					accruedInterest -= oneMonthsInterest;
+				}
+
+				DEBUG && GM_log(FUNCNAME + " accruedInterest adjustment=", accruedInterestAdjustment);
+				paymentAmount2 += accruedInterestAdjustment;
+						
+				accruedInterest = 0;	// throw away the remainder, since it will be included in first payment
+			}
+
+			var paymentAmountPV = discountRateNegative ? (paymentAmount2 * discountRatePOW) : (paymentAmount2 / discountRatePOW);
+			DEBUG && GM_log("paymentAmount2=", paymentAmount2, " paymentAmountPV=", paymentAmountPV);
+
+			paymentAmountPV *= (1.0 - serviceFeePercent);
+
+			totalPaymentsPV += paymentAmountPV;
+			
+			discountRatePOW *= discountRate;
+		}
+
+		DEBUG && GM_log("totalPaymentsPV=", totalPaymentsPV);
+		return totalPaymentsPV;
+	}
+	
+	this.NPV = NPV;
+};
+
+GM_log("PaymentCalcs=", PaymentCalcs);
 
 //function dayOfYear(date)
 //{
@@ -1630,7 +1656,7 @@ var DEBUG = debug(false, arguments);
 		else if(numPaymentsExpected < 1)
 			cumprincExpected = 0;
 		else
-			cumprincExpected = CUMPRINC(vars.interestRate / periodsInYear, vars.termInMonths, vars.loanFraction, 1, numPaymentsExpected);	// return value is negative
+			cumprincExpected = PaymentCalcs.CUMPRINC(vars.interestRate / periodsInYear, vars.termInMonths, vars.loanFraction, 1, numPaymentsExpected);	// return value is negative
 		
 		var outstandingPrincipalExpected = vars.loanFraction + cumprincExpected;
 
@@ -2112,14 +2138,14 @@ var DEBUG = debug(false, arguments);
 			}
 			else
 			{
-				var remainingPaymentsExpected = NPER(vars.interestRate / 12, -expectedPayment, vars.outstandingPrincipal);
+				var remainingPaymentsExpected = PaymentCalcs.NPER(vars.interestRate / 12, -expectedPayment, vars.outstandingPrincipal);
 				var remainingPaymentsExpectedCeil = Math.ceil(remainingPaymentsExpected);
 
 				var cumprinc =
-					-CUMPRINC(vars.interestRate / 12, remainingPaymentsExpectedCeil, vars.outstandingPrincipal, 1);
+					-PaymentCalcs.CUMPRINC(vars.interestRate / 12, remainingPaymentsExpectedCeil, vars.outstandingPrincipal, 1);
 
 				var cumint =
-					-CUMIPMT(vars.interestRate / 12, remainingPaymentsExpectedCeil, vars.outstandingPrincipal, 1);
+					-PaymentCalcs.CUMIPMT(vars.interestRate / 12, remainingPaymentsExpectedCeil, vars.outstandingPrincipal, 1);
 				
 				var remainingPaymentsExpectedTotal = cumprinc + cumint;
 			}
@@ -2257,7 +2283,7 @@ var DEBUG = debug(false, arguments);
 			var markupFrac = markup / vars.outstandingPrincipal;
 			
 			if(paymentHistory.first.amount > 0)
-				var irr = IRR(
+				var irr = PaymentCalcs.IRR(
 					vars.outstandingPrincipal,
 					round2Decimals(accruedInterest),
 					paymentHistory.first.amount,
@@ -2344,7 +2370,7 @@ var DEBUG = debug(false, arguments);
 		if(vars.par_value_at_sale != null)
 		{
 			if(paymentHistory.first.amount > 0)
-				var irr = IRR(
+				var irr = PaymentCalcs.IRR(
 					vars.par_value_at_sale,
 					round2Decimals(accruedInterest),
 					paymentHistory.first.amount,
@@ -2373,7 +2399,7 @@ var DEBUG = debug(false, arguments);
 		else if(isNoteSalePending(vars.noteId))
 		{
 			if(paymentHistory.first.amount > 0)
-				var irr = IRR(
+				var irr = PaymentCalcs.IRR(
 					vars.outstandingPrincipal,
 					round2Decimals(accruedInterest),
 					paymentHistory.first.amount,
@@ -2402,7 +2428,7 @@ var DEBUG = debug(false, arguments);
 	{
 		/* XXX this value can "expire" if payments get made on the loan */
 
-		var irr = IRR(
+		var irr = PaymentCalcs.IRR(
 			vars.outstandingPrincipal,
 			round2Decimals(accruedInterest),
 			paymentHistory.first.amount,
@@ -3389,7 +3415,7 @@ function getComment(comment_loanId)
 	
 function calcInterestInMonths(outstandingPrincipal, interestRate, accruedInterest)
 {
-var DEBUG = debug(true, arguments);
+var DEBUG = debug(false, arguments);
 
 	if(outstandingPrincipal === null || interestRate === null || accruedInterest === null)
 	{
@@ -3555,7 +3581,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		
 	var origPaymentAmount =
 		floor2Decimals(
-			PMT(interestRate / 12, termInMonths, loanFraction) * -1);	// the value is negative
+			PaymentCalcs.PMT(interestRate / 12, termInMonths, loanFraction) * -1);	// the value is negative
 
 	GM_log("interestRate=" + interestRate + " termInMonths=" + termInMonths + " loanFraction=" + loanFraction);
 	GM_log("origPaymentAmount=" + origPaymentAmount);
@@ -3787,7 +3813,7 @@ getLoanId.DEBUGCOUNT = -1;
 /* extract the loanId */
 function getLoanId(tr, loanIdColumnIndex, loanIdEmbeddedColumnIndex)
 {
-var DEBUG = debug(true, arguments);
+var DEBUG = debug(false, arguments);
 DEBUG && getLoanId.DEBUGCOUNT++;
 
 	try
@@ -3850,7 +3876,7 @@ DEBUG && getLoanId.DEBUGCOUNT++;
 
 function getNoteId(tr, noteIdColumnIndex, noteIdEmbeddedColumnIndex)
 {
-var DEBUG = debug(true, arguments);
+var DEBUG = debug(false, arguments);
 
 	try
 	{
@@ -4506,7 +4532,7 @@ function allowMiddleClickToWorkAgain(notesTable)
 
 function findHeadersCheckCells(notesTable, colorCellsFunc, tableCanChange, flags)
 {
-var DEBUG = debug(true, arguments);
+var DEBUG = debug(false, arguments);
 DEBUG && timestamp(arguments, true);
 
 	findHeaders0(notesTable,
@@ -4550,7 +4576,7 @@ var DEBUG = debug(false, arguments);
 
 function findHeaders00(notesTable0)
 {
-var DEBUG = debug(true, arguments);
+var DEBUG = debug(false, arguments);
 
 	// null these out in case they were set before
 	var columnIndexes = {};
@@ -6872,12 +6898,12 @@ function doitReady()
 
 					var loanFraction = Math.ceil(outstandingPrincipal / 25) * 25;	//XXX where can we get this????
 					/*YYY paymentAmount unknown at this point, remainingPayments is often incorrect*/
-//					var paymentAmount = floor2Decimals(-PMT(interestRate / 12, term, loanFraction));
+//					var paymentAmount = floor2Decimals(-PaymentCalcs.PMT(interestRate / 12, term, loanFraction));
 //					var paymentAmount = outstandingPrincipal / remainingPayments;	//WRONG!
-					var paymentAmount = floor2Decimals(-PMT(interestRate / 12, remainingPayments, outstandingPrincipal));
+					var paymentAmount = floor2Decimals(-PaymentCalcs.PMT(interestRate / 12, remainingPayments, outstandingPrincipal));
 //					GM_log("paymentAmount=" + paymentAmount);
 
-					var irr = IRR(
+					var irr = PaymentCalcs.IRR(
 						outstandingPrincipal,
 						accruedInterest,
 						paymentAmount,
@@ -10906,7 +10932,7 @@ function doitReady()
 				}
 				DEBUG && GM_log("element=", element);
 
-				element.wrapInner(sprintf("<a href=%s></a>", loanPerfURL));
+				element.wrapInner(sprintf("<a href=%s title='link added by LCAC'></a>", loanPerfURL));
 			});
 		});
 	}
