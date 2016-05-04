@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.240
+// @version        3.241
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4633 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4634 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
