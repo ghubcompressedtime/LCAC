@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.241
+// @version        3.243
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4634 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4639 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -2095,7 +2095,8 @@ var DEBUG = debug(false, arguments);
 	upcomingPaymentsBody
 		.append(''
 			+ sprintf("<tr><th>Initial <a href='%s'>PMT</a> Amount*</th><td>$%0.2f</td></tr>",
-				"http://office.microsoft.com/en-us/excel-help/pmt-HP005209215.aspx",
+//				"http://office.microsoft.com/en-us/excel-help/pmt-HP005209215.aspx",
+				"https://support.office.com/en-us/article/PMT-function-0214DA64-9A63-4996-BC20-214433FA6441",
 				vars.origPaymentAmount)
 			+ sprintf("<tr><th>+/-Expected as of %s*</th><td>%s</td></tr>",
 				dateShortFormat(vars.arrearsDate),
@@ -2476,7 +2477,7 @@ function doZipcode()
 	var locationurl = sprintf("https://maps.google.com/maps?hl=en&q=%s&t=m&z=7", encodeURIComponent(location));
 	DEBUG && GM_log("locationurl=", locationurl);
 	
-	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
+	locationTD.wrapInner(sprintf("<a href='%s' title='link added by LCAC' />", locationurl));
 }
 
 function doZipcodePrefix()
@@ -2495,7 +2496,7 @@ function doZipcodePrefix()
 
 	locationTD.append(' ' + zip3location);
 	
-	locationTD.wrapInner(sprintf("<a href='%s' />", locationurl));
+	locationTD.wrapInner(sprintf("<a href='%s' title='link added by LCAC' />", locationurl));
 }
 
 function doLoanDetail()
@@ -2528,7 +2529,7 @@ var DEBUG = debug(false, arguments);
 	DEBUG && GM_log("employerurl=", employerurl);
 
 	if(employerurl)
-		employerTD.wrapInner(sprintf("<a href='%s' />", employerurl));
+		employerTD.wrapInner(sprintf("<a href='%s' title='link added by LCAC' />", employerurl));
 	}
 
 	var comment = getComment(loanId);
@@ -2606,6 +2607,7 @@ function waitForElementLoop(selector, subselector, waitForElement_callback/*elem
 var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	var element = $(selector);
+	//XXX can find the subelements before it's fully populated (312, 300, 300, 100)? How is that possible? Are they loading it asynchorously?
 	var subelement = subselector == null ? element : element.find(subselector);
 
 	if($(document).text().match(/504.*Gateway Timeout/))
@@ -2819,11 +2821,12 @@ var DEBUG = debug(false, arguments, false), FUNCNAME = funcname(arguments);
 }
 
 var storedData;
-var expireOldData = true;
-function loadStoredData()
+function loadStoredData(/*expireOldData*/)
 {
 var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	DEBUG && timestamp(FUNCNAME, true);
+
+	var expireOldData = true;
 
 	if(storedData == null)
 	{
@@ -2843,6 +2846,11 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 		var loanDataJSONZIP = localStorage.getItem('loanDataZIP');
 		DEBUG && timestamp(FUNCNAME, 'HERE 3');
 		
+		if(!noteDataJSONZIP)
+			GM_log("noteDataJSONZIP=", noteDataJSONZIP);
+		if(!loanDataJSONZIP)
+			GM_log("loanDataJSONZIP=", loanDataJSONZIP);
+
 		var noteDataJSON = RawDeflate.inflate(noteDataJSONZIP);
 		DEBUG && timestamp(FUNCNAME, 'HERE 4');
 		var loanDataJSON = RawDeflate.inflate(loanDataJSONZIP);
@@ -2919,12 +2927,35 @@ status "Fully Paid"
 
 function saveStoredNotes(notes)
 {
+	try
+	{
+		saveStoredNotes0.apply(this, arguments);
+	}
+	catch(ex)
+	{
+		var FUNCNAME = funcname(arguments);
+
+		alert(FUNCNAME + " ex=" + ex);
+		GM_log(FUNCNAME + " ex=", ex, " ex.stack=", ex.stack);
+	}
+}
+
+function saveStoredNotes0(notes)
+{
 var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	if(!notes)
 		printStackTrace("notes=", notes);
 	
-	loadStoredData(true/*expireOldData*/);	// make sure it's loaded
+	try
+	{
+		loadStoredData(true/*expireOldData*/);	// make sure it's loaded
+	}
+	catch(ex)
+	{
+		alert(FUNCNAME + " ex=" + ex);
+		GM_log(FUNCNAME + " ex=", ex, " ex.stack=", ex.stack);
+	}
 
 	for(var index = 0; index < notes.length; index++)
 	{
@@ -2995,12 +3026,14 @@ function saveStoredData()
 {
 	try
 	{
-		saveStoredData0();
+		saveStoredData0.apply(this, arguments);
 	}
 	catch(ex)
 	{
-		alert("ex=" + ex);
-		GM_log("ex=", ex, " ex.stack=", ex.stack);
+		var FUNCNAME = funcname(arguments);
+
+		alert(FUNCNAME + " ex=" + ex);
+		GM_log(FUNCNAME + " ex=", ex, " ex.stack=", ex.stack);
 	}
 }
 
@@ -7316,9 +7349,9 @@ function doitReady()
 	/*
 	 * Download all the notes we hold, also updates the stored note data
 	 */
-	function getAccountNotesRawData(callback)
+	function getAccountNotesRawData(getAccountNotesRawData_callback)
 	{
-	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 		/*
 		 * YYY not straight-foward to get the complete list
@@ -7328,15 +7361,17 @@ function doitReady()
 		 * (we had a problem once selling notes when using the no-referer add-on)
 		 * YYY setting the referer is prohibited in javascript
 		 */
-		$.get(notesRawDataURL, function(responseText)
+		$.get(notesRawDataURL, function getAccountNotesRawData_get_notesRawDataURL_callback(responseText)
 		{
+			var FUNCNAME = funcname(arguments);
+
 			GM_log(FUNCNAME + " responseText.length=" + responseText.length);
 
 			if(responseText.match(/Member Sign-In/))		// we've been logged out
 			{
 				alert("Not logged in");
-				if(callback)
-					callback(null);
+				if(getAccountNotesRawData_callback)
+					getAccountNotesRawData_callback(null);
 				return;
 			}
 
@@ -7344,28 +7379,28 @@ function doitReady()
 			var notes = parseAccountNotesRawDataCsv(responseText);	// an array of notes
 			timestamp(FUNCNAME, 'after parseAccountNotesRawDataCsv');
 
-			DEBUG && GM_log(DEBUG + " notes.length=", notes.length);
-			DEBUG && GM_log(DEBUG + " notes=", notes);
+			GM_log(FUNCNAME + " notes.length=", notes.length);
+			GM_log(FUNCNAME + " notes=", notes);
 
 			saveOwnedNotes(notes);
 			saveStoredNotes(notes);
 
-			if(callback)
+			if(getAccountNotesRawData_callback)
 			{
 				DEBUG && GM_log(DEBUG + " calling getAccountNotesRawData_callback()...");
-				callback(notes);
+				getAccountNotesRawData_callback(notes);
 			}
 
 			// done
 		})
 		.fail(function(jqXHR, textStatus, errorThrown)
 		{
-			GM_log("getAccountNotesRawData() textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert("getAccountNotesRawData() textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 
-	function getFfnNotesRawData(callback)
+	function getFfnNotesRawData(getFfnNotesRawData_callback)
 	{
 	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
@@ -7390,8 +7425,8 @@ function doitReady()
 				if(responseText.match(/Member Sign-In/))		// we've been logged out
 				{
 					alert("Not logged in");
-					if(callback)
-						callback(null);
+					if(getFfnNotesRawData_callback)
+						getFfnNotesRawData_callback(null);
 					return;
 				}
 
@@ -7402,10 +7437,10 @@ function doitReady()
 				DEBUG && GM_log(FUNCNAME + " notes.length=", notes.length);
 				DEBUG && GM_log(FUNCNAME + " notes=", notes);
 
-				if(callback)
+				if(getFfnNotesRawData_callback)
 				{
 					DEBUG && GM_log(FUNCNAME + " calling getFfnNotesRawData_callback()...");
-					callback(notes);
+					getFfnNotesRawData_callback(notes);
 				}
 
 				// done
@@ -7427,7 +7462,7 @@ function doitReady()
 		});
 	}
 	
-	function getLenderActivityMulti(callback)
+	function getLenderActivityMulti(getLenderActivityMulti_callback)
 	{
 	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 				
@@ -7469,7 +7504,8 @@ function doitReady()
 				if(!responseText)
 				{
 					lenderActivityWindow.document.write("--Error, responseText is blank--");
-					if(callback) callback(false);
+					if(getLenderActivityMulti_callback) 
+						getLenderActivityMulti_callback(false);
 					return;
 				}
 
@@ -7478,7 +7514,8 @@ function doitReady()
 					GM_log("getLenderActivityMulti_getLenderActivity_callback() FOUND master_error-wrapper, returning");
 //					GM_log("responseText=", responseText);
 					lenderActivityWindow.document.write("--FOUND master_error-wrapper--");
-					if(callback) callback(true);
+					if(getLenderActivityMulti_callback)
+						getLenderActivityMulti_callback(true);
 					return;
 				}
 
@@ -10739,7 +10776,7 @@ function doitReady()
 							return;
 						
 						var url = loanPerfURL(note);
-						html = html.replace(/(Note:\s*)(\d+)/, "$1<a href='" + url + "'>$2</a>");
+						html = html.replace(/(Note:\s*)(\d+)/, sprintf("$1<a href='%s' title='link added by LCAC'>$2</a>", url));
 						DEBUG && GM_log("AFTER html=", html);
 						
 						element.html(html);
@@ -10834,7 +10871,7 @@ function doitReady()
 				if(PRICESINURL)
 					url += sprintf("&sale_price=%0.2f&par_value_at_sale=%0.2f&fee_at_sale=%0.2f", salePrice, parValueAtSale, saleFee);
 
-				noteIdCell.wrapInner(sprintf("<a href='%s' />", url));
+				noteIdCell.wrapInner(sprintf("<a href='%s' title='link added by LCAC' />", url));
 			}
 
 			/* total */
@@ -10903,6 +10940,7 @@ function doitReady()
 		var DEBUG = debug(false, arguments);
 
 			var trs = subelement;
+			GM_log("trs.length=", trs.length);
 			DEBUG && GM_log("trs=", trs);
 
 			trs.each(function(index, element)
