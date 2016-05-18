@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.244
+// @version        3.245
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4641 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4642 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -7892,11 +7892,11 @@ function doitReady()
 				.append(
 					"<div style='width:100%'>" +
 					"<input id='summaryValuesInput' type=text readonly onclick='select();' style='min-width:38em' />" +
-					"<input id='summaryValuesRefreshButton' type=button style='width:5em;' value='Refresh' />" +
+					"<input id='summaryValuesRefreshButton' type=button style='width:9em;' value='Refresh Values' />" +
 					"</div>" +
 					"<div style='width:100%'>" +
 					"<input id='summaryNotesInput' type=text readonly onclick='select();' style='min-width:38em' />" +
-					"<input id='summaryNotesRefreshButton' type=button style='width:5em;' value='Refresh' />" +
+					"<input id='summaryNotesRefreshButton' type=button style='width:9em;' value='Refresh Notes' />" +
 					"</div>" +
 
 					(LOOKUPBUTTONS ?
