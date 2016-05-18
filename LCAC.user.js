@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.243
+// @version        3.244
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4639 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4641 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -187,8 +187,8 @@ GM_log("NOFOLIOFNWARNING=", NOFOLIOFNWARNING);
 var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
 
 GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
-var LOADSUMMARYVALUESATSTARTUP = GM_getValue("LOADSUMMARYVALUESATSTARTUP", true);	//XXX compression is too slow on Firefox
-var LOADSUMMARYNOTESATSTARTUP = GM_getValue("LOADSUMMARYNOTESATSTARTUP", $.browser.mozilla ? false : true);	//XXX compression is too slow on Firefox
+var LOADSUMMARYVALUESATSTARTUP = GM_getValue("LOADSUMMARYVALUESATSTARTUP", true);
+var LOADSUMMARYNOTESATSTARTUP = GM_getValue("LOADSUMMARYNOTESATSTARTUP", true || ($.browser.mozilla ? false : true));	//XXX compression is too slow on Firefox
 
 var notesRawDataURL = '/account/notesRawDataExtended.action';	// available from https://www.lendingclub.com/account/loans.action
 
@@ -8106,12 +8106,14 @@ function doitReady()
 			{
 			var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
+				GM_log("doSummaryNotes()");
+
 				summaryNotesInput.addClass('lcac_updating');
 
 				timestamp(FUNCNAME, true);
 				getAccountNotesRawData(function doSummaryNotes_getAccountNotesRawData_callback(notes) // callback
 				{
-					var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
+					var DEBUG = debug(false, arguments);
 
 					timestamp(FUNCNAME, 'getAccountNotesRawData_callback begin');
 
@@ -8264,7 +8266,7 @@ function doitReady()
 			if(LOADSUMMARYNOTESATSTARTUP)
 				summaryNotesRefreshButtonClick();
 			else
-				console.log("LOADSUMMARYNOTESATSTARTUP=" + LOADSUMMARYNOTESATSTARTUP);
+				console.log("doSummaryNotes() skipped LOADSUMMARYNOTESATSTARTUP=" + LOADSUMMARYNOTESATSTARTUP);
 
 			summarydiv.find("input#importLocalStorageButton")
 				.after(
