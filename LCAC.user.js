@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.245
+// @version        3.246
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4642 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4643 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -185,6 +185,9 @@ var NOFOLIOFNWARNING = GM_getValue("NOFOLIOFNWARNING", false);
 GM_log("NOFOLIOFNWARNING=", NOFOLIOFNWARNING);
 
 var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
+
+var ADDYTMTARGET = true;
+var ADDYTMUNSETNEG = true;
 
 GM_log("$.browser=", $.browser, " $.browser.mozilla=", $.browser.mozilla);
 var LOADSUMMARYVALUESATSTARTUP = GM_getValue("LOADSUMMARYVALUESATSTARTUP", true);
@@ -5831,13 +5834,13 @@ function getMarkupAndYtmAj(loanId, orderId, askingPrice, callback)
 var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	var url = sprintf("/foliofn/getMarkupAndYtmAj.action");
-	var params = sprintf("orderId=%d&loanId=%d&askingPrice=%0.2f", orderId, loanId, askingPrice); // askingPrice MUST be no more than 2 decimal places!
+
+	//e.g. json=[{"loanId":"3666983","orderId":"16590048","askingPrice":"45.22"}]&reprice= undefined
+	//e.g. json=[{"loanId":"5608899","orderId":"55446570","askingPrice":"3.16"}]&reprice= false
+	var params = sprintf('json=[{"loanId":"%d","orderId":"%d","askingPrice":"%0.2f"}]', loanId, orderId, askingPrice); // askingPrice MUST be no more than 2 decimal places!
 
 	var reprice = location.href.match(/selectNotesToReprice.action/);
-	if(reprice)
-		params += "&reprice=true";
-	else
-		params += "&reprice=false";
+	params += sprintf("&reprice= %s", reprice ? "true" : "false");	// the space is important here?
 
 	DEBUG && GM_log("url=" + url);
 	DEBUG && GM_log("params=" + params);
@@ -5846,22 +5849,30 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	{
 	var FUNCNAME = funcname(arguments);
 
+		//e.g. {"result":[{"res":"Y","ytm":"15.61","markup":"0.01"}],"status":"success"}
+		//e.g. {"result":[{"res":"N","ytm":"","markup":""}],"status":"success"}
+
 		DEBUG && GM_log(FUNCNAME + " responseText=" + responseText);
 
 		var obj = $.parseJSON(responseText);
 		DEBUG && GM_log("obj=", obj);
 
-		if(obj == null || obj.status != 'success')
+		if(obj == null || obj.result == null || obj.result.length == 0 || obj.status != 'success')
 		{
 			GM_log("getMarkupAndYtmAj() get FAILED, obj=", obj, " url=", url);
 			callback(null, null);
 			return;
 		}
 
-		var result = obj.result;
+		var result = obj.result[0];
 		DEBUG && GM_log("result=", result);
 
-		callback(result.markup / 100, result.ytm / 100);	// these are percentages
+		//XXX what is res?
+
+		callback(
+			result.markup ? result.markup / 100 : null
+			, result.ytm ? result.ytm / 100 : null
+			);
 	});
 }
 	
@@ -5875,7 +5886,7 @@ function findAskingPriceForTargetYTM(loanId, orderId, askingPrice1, targetytm, c
 
 	getMarkupAndYtmAj(loanId, orderId, askingPrice1, function findAskingPriceForTargetYTM_callback1(markup, ytm)
 	{
-	var DEBUG = debug(false, arguments);
+	var DEBUG = debug(true, arguments);
 
 		if(markup == null)
 		{
@@ -10442,13 +10453,16 @@ function doitReady()
 			;
 			}
 
-			if(false)
-			{
 			ytmHeader
 				.append(""
-				+ "<input type='text' class='lcac_targetytm' size='4' value='0.05' />"	//XXX load a default from GM_getValue
-				+ "<input type='button' class='lcac_ytmdotarget' value='ytm target' />"
-				+ "<input type='button' class='lcac_unsetnegytm' value='unset neg' />"
+				+ (ADDYTMTARGET 
+					? ""
+						+ "<input type='text' class='lcac_targetytm' size='4' value='0.05' placeholder='frac or %' />"	//XXX load a default from GM_getValue
+						+ "<input type='button' class='lcac_ytmdotarget' value='ytm target' />"
+					: "")
+				+ (ADDYTMUNSETNEG
+					? "<input type='button' class='lcac_unsetnegytm' value='unset neg' />"
+					: "")
 				)
 				.find(".lcac_targetytm")
 					.change(function lcac_targetytm_change()
@@ -10499,7 +10513,6 @@ function doitReady()
 					unsetLessThan("td.ytm", 0);
 				})
 				;
-			}
 		}
 						
 		trs.each(function()
