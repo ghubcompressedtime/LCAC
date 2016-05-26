@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.246
+// @version        3.247
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -5647,45 +5647,53 @@ function moveFooterRowToFooter(notesTable)
 	}
 }
 
+// trace calls to unsafeWindow.showMarkupYtm()
+if(false)
+{
+// old
 //GM_log("typeof processMarkupYtm=", typeof processMarkupYtm);	//chrome
 //GM_log("typeof window.processMarkupYtm=", typeof window.processMarkupYtm);	//neither
 //GM_log("typeof unsafeWindow.processMarkupYtm=", typeof unsafeWindow.processMarkupYtm);	//chrome and firefox
-//
-//var showMarkupYtm0 = unsafeWindow.showMarkupYtm;
-//unsafeWindow.showMarkupYtm = function()
-//{
-//	GM_log("showMarkupYtm() arguments=", arguments);
-//	showMarkupYtm0.call(arguments);
-//}
-//GM_log("showMarkupYtm0=", showMarkupYtm0);
-//GM_log("unsageWindow.showMarkupYtm=", unsageWindow.showMarkupYtm);
+
+// new
+GM_log("typeof showMarkupYtm=", typeof showMarkupYtm);
+GM_log("showMarkupYtm=", showMarkupYtm);
+
+unsafeWindow.showMarkupYtm0 = unsafeWindow.showMarkupYtm;
+unsafeWindow.showMarkupYtm = function()
+{
+	GM_log("showMarkupYtm() arguments=", arguments);
+	var retval = showMarkupYtm0.apply(this, arguments);
+	GM_log("showMarkupYtm() retval=", retval);
+	return retval;
+}
+GM_log("showMarkupYtm0=", showMarkupYtm0);
+GM_log("unsafeWindow.showMarkupYtm=", unsafeWindow.showMarkupYtm);
+}
 
 function setAskingPriceInput(askingPriceInput, newValue)
 {
 	if(newValue !== null)
 		askingPriceInput.val(newValue == '' ? '' : sprintf("%0.2f", newValue));
 
-//	processMarkupYtm2(askingPriceInput);
-
-	GM_log("calling askingPriceInput.change()");
-//	askingPriceInput.trigger('change');	// fire the event to notify the listeners
-//	askingPriceInput.change();	// these aren't working
+	var reprice = location.href.match(/selectNotesToReprice.action/) ? true : false;
+	GM_log("setAskingPriceInput() reprice=", reprice);
 
 	var askingPriceInput0 = $(askingPriceInput).get(0);	// get the DOM element
 
-	showMarkupYtm.apply(askingPriceInput0, null, true);	// this is how they call it now
+	showMarkupYtm.call(askingPriceInput0/*this*/, null/*e*/, reprice);	// this is how they call it now
 }
 
-function processMarkupYtm2(askingPriceInput)
-{
-	/* as of 2013-10 processMarkupYtm is only on selectLoansForSale.action */
-	if(typeof unsafeWindow.processMarkupYtm != 'function')
-		return;
-
-	/* 2013-11-07 they added a reprice parameter to the URL. why? */
-	var reprice = location.href.match(/selectNotesToReprice.action/) != null;
-	unsafeWindow.processMarkupYtm(askingPriceInput, reprice);
-}
+//function processMarkupYtm2(askingPriceInput)
+//{
+//	/* as of 2013-10 processMarkupYtm is only on selectLoansForSale.action */
+//	if(typeof unsafeWindow.processMarkupYtm != 'function')
+//		return;
+//
+//	/* 2013-11-07 they added a reprice parameter to the URL. why? */
+//	var reprice = location.href.match(/selectNotesToReprice.action/) != null;
+//	unsafeWindow.processMarkupYtm(askingPriceInput, reprice);
+//}
 
 /* per http://stackoverflow.com/questions/1026069/capitalize-the-first-letter-of-string-in-javascript */
 function capitaliseFirstLetter(string, tolowercase)
@@ -5817,6 +5825,8 @@ var DEBUG = debug(false, arguments);
 		var askingPriceInput = tr.find("input.asking-price");
 		DEBUG && GM_log("askingPriceInput=", askingPriceInput);
 
+		(function(askingPriceInput)
+		{
 		findAskingPriceForTargetYTM(loanId, orderId, principalPlus, targetytm,
 			function doTargetYTM_findAskingPriceForTargetYTM_callback(success, askingPrice, ytm)
 			{
@@ -5825,6 +5835,7 @@ var DEBUG = debug(false, arguments);
 				setAskingPriceInput(askingPriceInput, success ? askingPrice : '');	// sets the input and calls processMarkup()
 				asyncLoopCallback();
 			});
+		})(askingPriceInput);
 
 	}, callbackDone);
 }
@@ -5837,6 +5848,7 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	//e.g. json=[{"loanId":"3666983","orderId":"16590048","askingPrice":"45.22"}]&reprice= undefined
 	//e.g. json=[{"loanId":"5608899","orderId":"55446570","askingPrice":"3.16"}]&reprice= false
+	//e.g. json=[{"loanId":"821938","orderId":"2001512","askingPrice":"2.73"}]&reprice= true
 	var params = sprintf('json=[{"loanId":"%d","orderId":"%d","askingPrice":"%0.2f"}]', loanId, orderId, askingPrice); // askingPrice MUST be no more than 2 decimal places!
 
 	var reprice = location.href.match(/selectNotesToReprice.action/);
