@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.247
+// @version        3.248
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4643 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4647 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -3739,6 +3739,9 @@ var FUNCNAME = funcname(arguments);
 	if($("div.collectionlog-header").length > 0)
 		warning2.push("Collection Log");
 
+	if(html.match(/(Pending)/i))
+		warning2.push(RegExp.$1);
+
 	if(html.match(/(charged\s*off)/i))
 		warning.push(RegExp.$1);
 
@@ -3792,7 +3795,7 @@ var FUNCNAME = funcname(arguments);
 
 	if(html.match(/(grace period)/i))
 		warning2.push(RegExp.$1);
-
+	
 	if(html.match(/(payment failed)/i))
 		warning2.push(RegExp.$1);
 
@@ -7669,95 +7672,103 @@ function doitReady()
 		});
 	}
 
-	function getAccountSummary(callback)
+	function getAccountSummary()
 	{
 	var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
-		var requestURL = "/account/lenderAccountDetail.action";
-
-		$.get(requestURL, function getAccountSummary_get(responseText, textStatus, jqXHR) 	// success
+		return new Promise(function(resolve, reject)
 		{
+			var requestURL = "/account/lenderAccountDetail.action";
+
+			$.get(requestURL, function getAccountSummary_get(responseText, textStatus, jqXHR) 	// success
+			{
+				var FUNCNAME = funcname(arguments);
+
+				if(responseText.match(/Member Sign-In/))		// we've been logged out
+				{
+					/* XXX alert the user */
+					reject(null);
+					return;
+				}
+				
+				DEBUG && GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
+				responseText = responseText.replace(/^[\s\S]*?(<body)/, "$1");	//YYY jquery 1.9.1 chokes on DOCTYPE line?
+				DEBUG && GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
+
+				var summary = parse_lenderAccountDetail(responseText);
+				DEBUG && GM_log(FUNCNAME + "_get() summary=", summary);
+
+				resolve(summary);
+			})
+			.fail(function getAccountSummary_get_fail(jqXHR, textStatus, errorThrown)
+			{
 			var FUNCNAME = funcname(arguments);
 
-			if(responseText.match(/Member Sign-In/))		// we've been logged out
-			{
-				/* XXX alert the user */
-				callback(null);
-				return;
-			}
-			
-			DEBUG && GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
-			responseText = responseText.replace(/^[\s\S]*?(<body)/, "$1");	//YYY jquery 1.9.1 chokes on DOCTYPE line?
-			DEBUG && GM_log(FUNCNAME + "_get() responseText.length=", responseText.length);
-
-			var summary = parse_lenderAccountDetail(responseText);
-			DEBUG && GM_log(FUNCNAME + "_get() summary=", summary);
-
-			callback(summary);
-		})
-		.fail(function getAccountSummary_get_fail(jqXHR, textStatus, errorThrown)
-		{
-		var FUNCNAME = funcname(arguments);
-
-			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				reject(null);
+			});
 		});
 	}
 
-	function getFoliofnSummary(getFoliofnSummary_callback)
+	function getFoliofnSummary()
 	{
 	var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
-		var requestURL = "/foliofn/tradingAccount.action";	// html
+		return new Promise(function(resolve, reject)
+			{
+			var requestURL = "/foliofn/tradingAccount.action";	// html
 
-		$.get(requestURL, function getFoliofnSummary_get(responseText) 	// success
-		{
+			$.get(requestURL, function getFoliofnSummary_get(responseText) 	// success
+			{
+				var FUNCNAME = funcname(arguments);
+
+				GM_log(FUNCNAME + " responseText.length=" + responseText.length);
+				DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0, 1024) + "...");
+
+				responseText = responseText.replace(/^[\s\S]*?(<body)/, "$1");	//YYY jquery 1.9.1 chokes on DOCTYPE line?
+				
+				DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0, 1024) + "...");
+
+				if(responseText.match(/Member Sign-In/))		// we've been logged out
+				{
+					alert("Not logged in");
+					reject(null);
+					return;
+				}
+
+				var dom = $(responseText);
+
+				var purchasedPendingLoanIds = {};
+				var soldPendingLoanIds = {} ;
+				var purchasedPendingNoteIds = {};
+				var soldPendingNoteIds = {} ;
+
+				var purchasedPendingTotal = calcPending(dom.find("table#purchased-orders"), null, purchasedPendingLoanIds, purchasedPendingNoteIds);
+				var soldPendingTotal = calcPending(dom.find("#sold-orders"), null, soldPendingLoanIds, soldPendingNoteIds);
+
+				dom.remove();	//XXX discard it (do we need to do this?)
+
+				saveOwnedNotesPending({
+					purchasedPendingLoanIds: purchasedPendingLoanIds,
+					purchasedPendingNoteIds: purchasedPendingNoteIds,
+					soldPendingLoanIds: soldPendingLoanIds,
+					soldPendingNoteIds: soldPendingNoteIds,
+					});
+
+				resolve({
+					purchasedPendingTotal: purchasedPendingTotal,
+					soldPendingTotal: soldPendingTotal,
+				});
+			})
+			.fail(function getFoliofnSummary_get_fail(jqXHR, textStatus, errorThrown)
+			{
 			var FUNCNAME = funcname(arguments);
 
-			GM_log(FUNCNAME + " responseText.length=" + responseText.length);
-			DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0, 1024) + "...");
-
-			responseText = responseText.replace(/^[\s\S]*?(<body)/, "$1");	//YYY jquery 1.9.1 chokes on DOCTYPE line?
-			
-			DEBUG && GM_log(FUNCNAME + " responseText=" + responseText.substr(0, 1024) + "...");
-
-			if(responseText.match(/Member Sign-In/))		// we've been logged out
-			{
-				alert("Not logged in");
-				getFoliofnSummary_callback(null);
-				return;
-			}
-
-			var dom = $(responseText);
-
-			var purchasedPendingLoanIds = {};
-			var soldPendingLoanIds = {} ;
-			var purchasedPendingNoteIds = {};
-			var soldPendingNoteIds = {} ;
-
-			var purchasedPendingTotal = calcPending(dom.find("table#purchased-orders"), null, purchasedPendingLoanIds, purchasedPendingNoteIds);
-			var soldPendingTotal = calcPending(dom.find("#sold-orders"), null, soldPendingLoanIds, soldPendingNoteIds);
-
-			dom.remove();	//XXX discard it (do we need to do this?)
-
-			saveOwnedNotesPending({
-				purchasedPendingLoanIds: purchasedPendingLoanIds,
-				purchasedPendingNoteIds: purchasedPendingNoteIds,
-				soldPendingLoanIds: soldPendingLoanIds,
-				soldPendingNoteIds: soldPendingNoteIds,
-				});
-
-			getFoliofnSummary_callback({
-				purchasedPendingTotal: purchasedPendingTotal,
-				soldPendingTotal: soldPendingTotal,
+				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				reject(null);
 			});
-		})
-		.fail(function getFoliofnSummary_get_fail(jqXHR, textStatus, errorThrown)
-		{
-		var FUNCNAME = funcname(arguments);
-
-			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 
@@ -8112,15 +8123,19 @@ function doitReady()
 					input.val(total);
 				});
 
-				getAccountSummary(
-					function(retvals)	// callback
+				getAccountSummary()
+					.then(function(retvals)	// callback
 					{
+						debug(true, arguments);
+
 						updateSummary(retvals) && doSummaryValues_callback();
 					});
 
-				getFoliofnSummary(
-					function(retvals)	// callback
+				getFoliofnSummary()
+					.then(function(retvals)	// callback
 					{
+						debug(true, arguments);
+
 						updateSummary(retvals) && doSummaryValues_callback();
 					});
 			}
@@ -10783,7 +10798,8 @@ function doitReady()
 	/* e.g.
 	<td id="yui-gen633" class="descriptions"> Sell Note:6531226 </td>
 	*/
-					tbody.find("td.descriptions:contains(Buy Note:)").each(function tbody_find()
+					tbody.find("td.descriptions:contains(Buy Note:), td.descriptions:contains(Sell Note:)")
+						.each(function tbody_find()
 					{
 					var DEBUG = debug(false, arguments);
 
@@ -10791,22 +10807,37 @@ function doitReady()
 						DEBUG && GM_log("element=", element);
 
 						var html = element.html();
+						var html_orig = html;
+
 						DEBUG && GM_log("html=" + html);
 
 						var noteId = html.match(/Note:\s*(\d+)/)[1];
 						DEBUG && GM_log("noteId=" + noteId);
 
+						var loanId = html.match(/Loan ID:\s*(\d+)/)[1];
+						DEBUG && GM_log("loanId=" + loanId);
+
+						var comment = getComment(loanId);
+						if(comment)
+						{
+							html = html + "<br>LCAC Comment: " + comment;
+							DEBUG && GM_log("AFTER html=", html);
+						}
+
 						var note = getStoredNote(noteId);
 						DEBUG && GM_log("note=", note);
 
-						if(note == null)
-							return;
+						// need order_id to link to the note
+
+						if(note)
+						{
+							var url = loanPerfURL(note);
+							html = html.replace(/(Note:\s*)(\d+)/, sprintf("$1<a href='%s' title='link added by LCAC'>$2</a>", url));
+							DEBUG && GM_log("AFTER html=", html);
+						}
 						
-						var url = loanPerfURL(note);
-						html = html.replace(/(Note:\s*)(\d+)/, sprintf("$1<a href='%s' title='link added by LCAC'>$2</a>", url));
-						DEBUG && GM_log("AFTER html=", html);
-						
-						element.html(html);
+						if(html != html_orig)
+							element.html(html);
 					});
 				});
 			});
