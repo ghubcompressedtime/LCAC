@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.248
+// @version        3.249
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4647 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4654 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -180,9 +180,6 @@ GM_log("SELLORDERLINKONLOANPERFENABLED=", SELLORDERLINKONLOANPERFENABLED);
 
 var AUTOSELLSELECT = GM_getValue("AUTOSELLSELECT", TESTING);
 GM_log("AUTOSELLSELECT=", AUTOSELLSELECT);
-
-var NOFOLIOFNWARNING = GM_getValue("NOFOLIOFNWARNING", false);
-GM_log("NOFOLIOFNWARNING=", NOFOLIOFNWARNING);
 
 var FICODROPPERCENT = GM_getValue("FICODROPPERCENT", 0.25);
 
@@ -1231,8 +1228,6 @@ var PaymentCalcs = new function PaymentCalcs_impl()
 	this.NPV = NPV;
 };
 
-GM_log("PaymentCalcs=", PaymentCalcs);
-
 //function dayOfYear(date)
 //{
 //	date = new Date(date);
@@ -1461,7 +1456,6 @@ var DEBUG = debug(false, arguments);
 	 * ChargedOff (no space)
 	 */
 	var serviceFeeTotal = 0;
-	var serviceFeeIdealTotal = 0;
 	var paymentTotal = 0;
 	var lateFeeTotal = 0;
 	
@@ -1581,13 +1575,10 @@ var DEBUG = debug(false, arguments);
 		paymentTotal += amount;
 		lateFeeTotal += lateFee;
 
-		var serviceFeeIdeal = amount * 0.01;	// 1 % of total
-		serviceFeeIdealTotal += serviceFeeIdeal;
-
 		var serviceFee =
 			amount <= 0.01
 			? 0.00
-			: Math.max(0.01, round2Decimals(serviceFeeIdeal));	// rounded, minimum is 1 cent
+			: 0.01;	// rounded, minimum is 1 cent
 		serviceFeeTotal += serviceFee;
 	}
 			
@@ -1596,14 +1587,7 @@ var DEBUG = debug(false, arguments);
 		dueDateTrue.setMonth(dueDateTrue.getMonth() - 1);
 	paymentHistory.first.dueDateTrue = dueDateTrue;
 
-	serviceFeeIdealTotal = round2Decimals(serviceFeeIdealTotal);
-
-	var serviceFeeIdealTotal2 = round2Decimals(paymentTotal * 0.01);	// check value
-
-	var feeOverpayment = serviceFeeTotal - serviceFeeIdealTotal;
-
 	vars.serviceFeeTotal = serviceFeeTotal;
-	vars.feeOverpayment = feeOverpayment;
 
 	/* find the arrears date, the most recent payment */
 	var arrearsString, arrearsDate;
@@ -2050,6 +2034,10 @@ var DEBUG = debug(true, arguments);
 		
 	/*XXX if you buy a note, then sell it, then buy it again, what value goes in amountLent? */
 
+	var profitLoss = note.paymentReceived + vars.recoveries - note.amountLent;
+
+	GM_log("profitLoss=", profitLoss);
+
 	$("table.lcac_ReceivedPayments tbody")
 		.append(note.orderDate < note.issueDate ? '' : (''
 			+ sprintf("<tr title='%s'><th>Order Date*</th><td>%s</td></tr>",
@@ -2063,8 +2051,8 @@ var DEBUG = debug(true, arguments);
 			+ sprintf("<tr class='sub-total' title='%s'><th>Payments Received*</th><td>$%0.2f</td></tr>",
 				"This value comes from " + notesRawDataURL,
 				note.paymentReceived)
-			+ sprintf("<tr class='sub-total'><th>Profit/Loss*</th><td>%s</td></tr>",
-				negative2parens("$%0.2f", note.paymentReceived + vars.recoveries - note.amountLent))
+			+ sprintf("<tr class='sub-total'><th title='includes Recoveries'>Profit/Loss*</th><td>%s</td></tr>",
+				negative2parens("$%0.2f", profitLoss))
 			);
 }
 
@@ -2108,18 +2096,6 @@ var DEBUG = debug(false, arguments);
 				
 	if(FEEOVERPAYMENT)
 	{
-		if(true || vars.outstandingPrincipal > 0)
-		{
-			/* YYY if fully paid, the fee overpayment rebate could be included in the final
-			 * payment, making this calculation wrong but not by very much
-			 */
-			upcomingPaymentsBody
-				.append(''
-					+ sprintf("<tr><th>Fee Overpayment (est.)*</th><td>%s</td></tr>",
-						vars.noFee ? "No Fee" : sprintf("%+0.2f", vars.feeOverpayment))
-				);
-		}
-
 		if(vars.outstandingPrincipal > 0)
 		{
 			var expectedPayment = paymentHistory.firstNotScheduledOrProcessing.amount;
@@ -6075,59 +6051,35 @@ function doitReady()
 		return;
 	}
 
-	if(NOFOLIOFNWARNING)
-		$(".leavingForFolioFnWarning")
-			.each(function()
-			{
-				/* replace the element since they've already got the listener attached */
-				var replacement = $(this).clone().removeClass("leavingForFolioFnWarning");
-				$(this).replaceWith(replacement);
-			});
-	else
-		$(".leavingForFolioFnWarning").click(function()
-		{
-			$("#leavingLcWarningPopup .button-group")
-				.prepend("<label><input type='checkbox' class='neveraskagain' />Never ask again*</label>")
-				.find("button.default")	// the Yes button
-					.click(function()
-					{
-						var neveraskagain = $(".neveraskagain").prop('checked');
-						if(neveraskagain)
-							GM_setValue("NOFOLIOFNWARNING", true);
-					})
-		});
-
 		
-	/* Add direct links to Foliofn browse notes/sell notes */
-	$("li:contains(Trading Account) a[href='/foliofn/tradingAccount.action']").closest("li")
-		.after(''
-			+ sprintf(
-				"<li>"
-				+ "<a href='%s'>Ffn Browse*</a>"
-				+ "<span class='separator'>|</span>"
-				+ "</li>"
-				,
-				'/foliofn/tradingInventory.action')
-			+ sprintf(
-				"<li>"
-				+ "<a href='%s'>Ffn Sell*</a>"
-				+ "<span class='separator'>|</span>"
-				+ "</li>"
-				,
-				'/foliofn/sellNotes.action')
-			);
-
-	var divier = $("li.divier:first");
+	/* Add links to Foliofn browse notes/sell notes */
 	$("li:contains(My Account) a[href='/foliofn/tradingAccount.action']").closest("li")
 		.after(''
 			+ sprintf(
-				"<li>"
-				+ "<a href='%s'>LendingClub Account*</a>"
-				+ "</li>"
-				,
-				'/account/summary.action')
+				"<li class='divier'>|</li>"
+				+ "<li><a href='%s'>LendingClub Account*</a></li>"
+				, '/account/summary.action')
+			);
+
+	/* Add links */
+	var divipm = $("div.investor-primary-menu");
+	GM_log("divipm=", divipm);
+	divipm.find("li:contains(Holdings)")
+		.append(''
+			+ sprintf(
+				""
+				+ "<a href='%s' style='font-size:x-small'>(Notes)</a>"
+				, '/account/loans.action'
+				)
 			)
-		.after(divier.clone())	// after the My Account li (after returns original set)
+		;
+	divipm.find("li:contains(Invest)")
+		.append(''
+			+ sprintf(
+				""
+				+ "<a href='%s' style='font-size:x-small'>(Foliofn)</a>"
+				, '/foliofn/tradingAccount.action')
+			)
 		;
 
 		
@@ -9572,6 +9524,8 @@ function doitReady()
 			var interestAnomalyAlerted = false;
 			if(interestAnomaly.length > 0)
 			{
+				GM_log("interestAnomaly=", interestAnomaly);
+
 				var accruedInterestDiffMin = null;
 				var indexMin = null;
 				for(var index = 0; index < interestAnomaly.length; index++)
@@ -9582,6 +9536,8 @@ function doitReady()
 						accruedInterestDiffMin = interestAnomaly[index].accruedInterestDiff;
 					}
 				}
+				
+				GM_log("accruedInterestDiffMin=", accruedInterestDiffMin);
 
 				if(!interestAnomalyAlerted)
 				{
@@ -9590,7 +9546,7 @@ function doitReady()
 					{
 						alert(
 							sprintf("Cached values out of date.%s Visit LC Account page to reload.",
-								(TESTING && indexMin != null
+								((TESTING || true) && indexMin != null
 								? sprintf(" %d notes, Max %f, Note Id %d.",
 									interestAnomaly.length, interestAnomaly[indexMin].accruedInterestDiff, interestAnomaly[indexMin].noteId)
 								: "")
