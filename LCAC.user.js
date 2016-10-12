@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.249
+// @version        3.250
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4654 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4661 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -3666,7 +3666,7 @@ var FUNCNAME = funcname(arguments);
 }
 
 
-var highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|Advanced collector|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
+var highlightLoanPerfBAD = RegExp("(charged\\s*off|default|deceased|passed away|bankrupt\\S*|lawsuit|bankruptcy counsel|external collections|collections|Payment Solutions specialist|Advanced collector|engaged with debt consolidator|skip trace|mail.*letter|cease and desist)", "gi");
 var highlightLoanPerfWARNING = RegExp("(Processing...|partial payment|payment failed|\\d+ days late|check payment|grace period|mail service|no voicemail|3rd party|partial payment|not\\s*received|on payment plan|Overdue|collection log)", "gi");
 
 function highlightLoanPerf()
@@ -3724,7 +3724,7 @@ var FUNCNAME = funcname(arguments);
 	if(html.match(/(default)/i))
 		warning.push(RegExp.$1);
 
-	if(html.match(/(deceased)/i))
+	if(html.match(/(deceased|passed away)/i))
 		warning.push(RegExp.$1);
 
 	if(html.match(/(lawsuit)/i))
@@ -4041,7 +4041,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	 * Note: Collection Log can be non-existent
 	 */
 	var collectionLogText = dom.find("div#lcLoanPerf2").text();
-	var bankruptDeceased = collectionLogText.match(/charged\s*off|deceased|chapter.*?bankrupt\w*|lawsuit/ig);
+	var bankruptDeceased = collectionLogText.match(/charged\s*off|deceased|passed away|chapter.*?bankrupt\w*|lawsuit/ig);
 	if(bankruptDeceased)
 		bankruptDeceased = bankruptDeceased.join(',').toLowerCase();
 	DEBUG && GM_log("bankruptDeceased=", bankruptDeceased);
