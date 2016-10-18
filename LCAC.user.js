@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.250
+// @version        3.251
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4661 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4667 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -2511,6 +2511,25 @@ var DEBUG = debug(false, arguments);
 		employerTD.wrapInner(sprintf("<a href='%s' title='link added by LCAC' />", employerurl));
 	}
 
+	// add loan title to purpose (they removed this from display but it's still in the csv)
+	var noteArray = getStoredNotesForLoanId(loanId);
+	GM_log("noteArray=", noteArray);
+	if(noteArray && noteArray.length > 0)
+	{
+		var note = noteArray[0];
+		GM_log("note=", note);
+
+		var title = note.title;
+		GM_log("title=", title);
+
+		if(title)
+		{
+			var loanPurposeTR = $("th:contains(Loan Purpose)").parent("tr");
+			GM_log("loanPurposeTR=", loanPurposeTR);
+			loanPurposeTR.after("<tr title='added by LCAC, from CSV file'><th>Loan Title*</th><td>" + title + "</td></tr>");
+		}
+	}
+
 	var comment = getComment(loanId);
 
 	$(".details-wrapper").first().after(
@@ -3194,6 +3213,17 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	return loanPerfURL2(loanId, orderId, noteId, useFoliofnLink);
 }
+	
+function loanDetailURLFoliofn(loanId)
+{
+	return sprintf("/browse/loanDetail.action?loan_id=%s", loanId);
+}
+
+function loanDetailURL(loanId)
+{
+	return sprintf("/account/loanDetail.action?loan_id=%s", loanId);
+}
+		
 
 
 /* the noteIds and loanIds we currently hold
@@ -3518,16 +3548,25 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	/* add noteId to title */
 	if(noteId)
 	{
-		var titleHeader = $(":header:contains(Loan id:)");
-		GM_log("titleHeader=", titleHeader);
+		var note = getStoredNote(noteId);
 
-		var titleHeaderHTML = titleHeader.html();
-		GM_log("2 titleHeaderHTML=", titleHeaderHTML);
+		var header = $(":header:contains(Loan id:)");
+		GM_log("header=", header);
 
-		titleHeaderHTML = titleHeaderHTML.replace(/(\(Loan id: \d+)(\))/, "$1, Note id: " + noteId + "$2");
-		GM_log("3 titleHeaderHTML=", titleHeaderHTML);
+		var headerHTML = header.html();
+		GM_log("2 headerHTML=", headerHTML);
 
-		titleHeader.html(titleHeaderHTML);
+		headerHTML = headerHTML.replace(/(\(Loan id: \d+)(\))/, "$1, Note id: " + noteId + "$2");
+		GM_log("3 headerHTML=", headerHTML);
+		
+		var title = note.title;
+		if(title)
+		{
+			headerHTML += "<br><span title='added by LCAC, from CSV file'>Loan Title*: " + title + "</span>";
+			GM_log("4 headerHTML=", headerHTML);
+		}
+
+		header.html(headerHTML);
 	}
 
 	var accrued_interest = parseFloat2($("th:contains('Accrued Interest') + td").text());
@@ -3542,17 +3581,6 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	
 	if(interestRate == 0.06 && interestGrade != 'A1')
 		interestRateGradeCell.attr("title", "Servicemembers Civil Relief Act?");
-	else if(false/*XXX do we really need this?*/ && noteId)
-	{
-		/*YYY sometimes interestRate displayed does not match interestRate in the csv file */
-		var note = getStoredNote(noteId);
-		if(note)
-		{
-			GM_log("note.interestRate=", note.interestRate);
-			if(note.interestRate != interestRate)
-				interestRateGradeCell.attr("title", sprintf("My Notes &gt; Download All &gt; InterestRate=%s", note.interestRate));
-		}
-	}
 
 	/*
 	 * sanity check, minimum interest rate is like 4%
@@ -7216,11 +7244,6 @@ function doitReady()
 		return ( CHECKBOXLIMIT > 0 && value > CHECKBOXLIMIT ) ? '+' : '';
 	}
 
-	function loanDetailURL(loanId)
-	{
-		return sprintf("/browse/loanDetail.action?loan_id=%s", loanId);
-	}
-		
 	function toYYYYMMDD(datestr)
 	{
 		if(!datestr)
@@ -7270,6 +7293,7 @@ function doitReady()
 				principalRemaining: parseFloat(note['PrincipalRemaining']),
 				interestRate: parseFloat(note['InterestRate']) / 100,
 				status: note['Status'],
+				title: note['title'],
 
 				nextPaymentDate: toYYYYMMDD(note['NextPaymentDate']),
 			};
@@ -7338,6 +7362,8 @@ function doitReady()
 		 * cookies all look the same, is it using referer?
 		 * (we had a problem once selling notes when using the no-referer add-on)
 		 * YYY setting the referer is prohibited in javascript
+		 *
+		 * Download All - Extended / notes_ext.csv
 		 */
 		$.get(notesRawDataURL, function getAccountNotesRawData_get_notesRawDataURL_callback(responseText)
 		{
@@ -7945,7 +7971,7 @@ function doitReady()
 				if(loanId == "")
 					return;
 					
-				var url = sprintf("/account/loanDetail.action?loan_id=%s", loanId);
+				var url = loanDetailURL(loanId);
 				window.open(url, "_blank");
 			});
 
@@ -10948,45 +10974,95 @@ function doitReady()
 						.prop('disabled', false);
 				});
 			});
-
-		waitForElementLoop("#detailTable-div", "tbody.yui-dt-data tr", function getLenderActivity_callback(element, subelement)
-		{
-		var DEBUG = debug(false, arguments);
-
-			var trs = subelement;
-			GM_log("trs.length=", trs.length);
-			DEBUG && GM_log("trs=", trs);
-
-			trs.each(function(index, element)
+		
+		// poll for rows, they don't reuse the trs
+		waitForElementLoop("#lender-activity-div .yui-dt-data", "td:contains( Loan )"
+			, function getLenderActivity_lenderActivitycallback(element, subelement)
 			{
-				DEBUG && GM_log("index=", index, " element=", element);
-				
-				var tr = $(element);
+			var DEBUG = debug(false, arguments);
 
-				var loanId = tr.find("td.yui-dt-col-loanId").text();
-				var orderId = tr.find("td.yui-dt-col-orderId").text();
-				var noteId = tr.find("td.yui-dt-col-noteId").text();
-				
-				DEBUG && GM_log("loanId=", loanId, " orderId=", orderId, " noteId=", noteId);
+				var tds = subelement;
+				GM_log("tds.length=", tds.length);
+				DEBUG && GM_log("tds=", tds);
 
-				var loanPerfURL = loanPerfURL2(loanId, orderId, noteId);
-				
-				DEBUG && GM_log("loanPerfURL=", loanPerfURL);
-
-				var element = tr.find("td.yui-dt-col-noteId");
-				//get innermost element
-				while(true)
+				tds.each(function(index, element)
 				{
-					var child = element.children(":first");
-					if(child.length == 0)
-						break;
-					element = child;
-				}
-				DEBUG && GM_log("element=", element);
+					DEBUG && GM_log("index=", index, " element=", element);
+					
+					element = $(element);
 
-				element.wrapInner(sprintf("<a href=%s title='link added by LCAC'></a>", loanPerfURL));
+					//get innermost element (innermost of first elements)
+					while(true)
+					{
+						var child = element.children(":first");
+						if(child.length == 0)	// no inner elements
+							break;
+						element = child;
+					}
+					DEBUG && GM_log("element=", element);
+
+					var text = element.text();
+
+					DEBUG && GM_log("text=", text);
+
+					var textparts = text.match(/(.* Loan )(\d+)(.*)/);
+
+					DEBUG && GM_log("textparts=", textparts);
+
+					if(!textparts)	// ignore e.g. Funds Transfer from Folio Investing account, Loan ...
+						return;
+
+					var loanId = textparts[2];
+					
+					DEBUG && GM_log("loanId=", loanId);
+
+					var url = loanDetailURL(loanId);
+
+					var html = sprintf('%s<a href="%s">%s</a>%s', textparts[1], url, textparts[2], textparts[3]);
+					
+					element.html(html);
+				});
 			});
-		});
+
+		// poll for Payment & Fee Details popups, they don't reuse the popups
+		waitForElementLoop("#detailTable-div", "tbody.yui-dt-data tr"
+			, function getLenderActivity_detailTable_callback(element, subelement)
+			{
+			var DEBUG = debug(false, arguments);
+
+				var trs = subelement;
+				GM_log("trs.length=", trs.length);
+				DEBUG && GM_log("trs=", trs);
+
+				trs.each(function(index, element)
+				{
+					DEBUG && GM_log("index=", index, " element=", element);
+					
+					var tr = $(element);
+
+					var loanId = tr.find("td.yui-dt-col-loanId").text();
+					var orderId = tr.find("td.yui-dt-col-orderId").text();
+
+					var noteIdElement = tr.find("td.yui-dt-col-noteId");
+					var noteId = noteIdElement.text();
+					
+					DEBUG && GM_log("loanId=", loanId, " orderId=", orderId, " noteId=", noteId);
+
+					var loanPerfURL = loanPerfURL2(loanId, orderId, noteId);
+					
+					//get innermost element (innermost of first elements)
+					while(true)
+					{
+						var child = noteIdElement.children(":first");
+						if(child.length == 0)	// no inner elements
+							break;
+						noteIdElement = child;
+					}
+					DEBUG && GM_log("noteIdElement=", noteIdElement);
+
+					noteIdElement.wrapInner(sprintf("<a href=%s title='link added by LCAC'></a>", loanPerfURL));
+				});
+			});
 	}
 	else if(href.match(/orderDetails.action/))	// scrape the Order Details
 	{
@@ -11409,7 +11485,7 @@ function doitReady()
 					var note = notesToScanNoLocation.shift();
 					var loanId = note.loanId;
 					
-					var url = loanDetailURL(loanId) + tsParam();
+					var url = loanDetailURLFoliofn(loanId) + tsParam();
 					DEBUG && GM_log("scanLoans_doloop() url=" + url + "...");
 					$.get(url, function(responseText)
 					{
