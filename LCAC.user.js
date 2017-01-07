@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.251
+// @version        3.252
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4667 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4679 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -1479,6 +1479,20 @@ var DEBUG = debug(false, arguments);
 		/*
 		 * WARNING: principal but no interest possible when loan is in Default status
 		 */
+		 
+		/*
+		 *  _oData: Object
+		 *   compDate: Wed Jul 06 2011 00:00:00 GMT-0400 (Eastern Daylight Time)
+		 *   dueDate: Wed Jun 29 2011 00:00:00 GMT-0400 (Eastern Daylight Time)
+		 *   dueDayIndex: "06-29-2011"
+		 *   interest: "0.1805877671"
+		 *   investorFees: "0.21"
+		 *   lateFees: "0.00"
+		 *   outstandingPrincipal: "0.00"
+		 *   paymentAmount: "20.8400000000"
+		 *   principal: "20.6594122329"
+		 *   status: "Completed - In Grace Period"
+		 */
 
 		// Wed Dec 31 1969 19:00:00 GMT-0500 .getTime() = 0
 		var dueDate0 = record._oData.dueDate;
@@ -1496,13 +1510,11 @@ var DEBUG = debug(false, arguments);
 
 		if(typeof compDate == 'string' && compDate.match(/^Multiple Dates/i))
 			continue;
-
-		rowcount++;
+		
+		compDate = Y2K(compDate);
 
 		// XXX When Multiple Dates then dueDate = Wed Dec 31 1969 19:00:00 GMT-0500
 		// maybe could use dueDateIndex?
-
-		compDate = Y2K(compDate);
 
 		var status = record._oData.status.replace(/[\r\n\s]+/g, ' ').trim();
 		var amount = record._oData.paymentAmount;
@@ -1514,8 +1526,9 @@ var DEBUG = debug(false, arguments);
 		 * <span title="$0.236719509292">$0.24</span>
 		 * --
 		 */
-		var principal = html2Value(record._oData.principal);
-		var interest = html2Value(record._oData.interest);
+		var principal = parseFloat(record._oData.principal);
+		var interest = parseFloat(record._oData.interest);
+		var investorFees = parseFloat(record._oData.interest);
 		
 		var payment = {
 			dueDate: dueDate
@@ -1524,9 +1537,12 @@ var DEBUG = debug(false, arguments);
 			, amount: amount
 			, principal: principal
 			, interest: interest
+			, investorFee: investorFees
 		};
 
 		paymentHistory.push(payment);
+		
+		rowcount++;
 
 		DEBUG && GM_log("index=" + index + " rowcount=" + rowcount + " payment=", payment);
 		if(rowcount == 0)
@@ -2034,7 +2050,7 @@ var DEBUG = debug(true, arguments);
 		
 	/*XXX if you buy a note, then sell it, then buy it again, what value goes in amountLent? */
 
-	var profitLoss = note.paymentReceived + vars.recoveries - note.amountLent;
+	var profitLoss = note.paymentReceived + vars.recoveries - note.amountLent;	// excludes Fees!?!?
 
 	GM_log("profitLoss=", profitLoss);
 
@@ -2051,7 +2067,7 @@ var DEBUG = debug(true, arguments);
 			+ sprintf("<tr class='sub-total' title='%s'><th>Payments Received*</th><td>$%0.2f</td></tr>",
 				"This value comes from " + notesRawDataURL,
 				note.paymentReceived)
-			+ sprintf("<tr class='sub-total'><th title='includes Recoveries'>Profit/Loss*</th><td>%s</td></tr>",
+			+ sprintf("<tr class='sub-total'><th title='includes Recoveries, excludes Fees'>Profit/Loss*</th><td>%s</td></tr>",
 				negative2parens("$%0.2f", profitLoss))
 			);
 }
@@ -2089,9 +2105,9 @@ var DEBUG = debug(false, arguments);
 //				"http://office.microsoft.com/en-us/excel-help/pmt-HP005209215.aspx",
 				"https://support.office.com/en-us/article/PMT-function-0214DA64-9A63-4996-BC20-214433FA6441",
 				vars.origPaymentAmount)
-			+ sprintf("<tr><th>+/-Expected as of %s*</th><td>%s</td></tr>",
-				dateShortFormat(vars.arrearsDate),
-				vars.arrearsString)
+//			+ sprintf("<tr><th>+/-Expected as of %s*</th><td>%s</td></tr>",
+//				dateShortFormat(vars.arrearsDate),
+//				vars.arrearsString)
 			);
 				
 	if(FEEOVERPAYMENT)
@@ -3548,8 +3564,6 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	/* add noteId to title */
 	if(noteId)
 	{
-		var note = getStoredNote(noteId);
-
 		var header = $(":header:contains(Loan id:)");
 		GM_log("header=", header);
 
@@ -3559,11 +3573,16 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		headerHTML = headerHTML.replace(/(\(Loan id: \d+)(\))/, "$1, Note id: " + noteId + "$2");
 		GM_log("3 headerHTML=", headerHTML);
 		
-		var title = note.title;
-		if(title)
+		var note = getStoredNote(noteId);
+		GM_log(FUNCNAME + " getStoredNote() returns note=", note);
+		if(note)
 		{
-			headerHTML += "<br><span title='added by LCAC, from CSV file'>Loan Title*: " + title + "</span>";
-			GM_log("4 headerHTML=", headerHTML);
+			var title = note.title;
+			if(title)
+			{
+				headerHTML += "<br><span title='added by LCAC, from CSV file'>Loan Title*: " + title + "</span>";
+				GM_log("4 headerHTML=", headerHTML);
+			}
 		}
 
 		header.html(headerHTML);
@@ -8508,6 +8527,8 @@ function doitReady()
 					{
 						var paymentHistory = doLoanPerfPart2(vars);
 
+						GM_log("paymentHistory=", paymentHistory);
+
 						doLoanPerfPart3(vars, paymentHistory);
 						
 						highlightLoanPerf();		// need to do this after doLoanPerfPart2() which causes entire Payment History to display
@@ -10976,13 +10997,13 @@ function doitReady()
 			});
 		
 		// poll for rows, they don't reuse the trs
-		waitForElementLoop("#lender-activity-div .yui-dt-data", "td:contains( Loan )"
+		waitForElementLoop("#lender-activity-div tbody.yui-dt-data", "td:contains( Loan )"
 			, function getLenderActivity_lenderActivitycallback(element, subelement)
 			{
-			var DEBUG = debug(false, arguments);
+			var DEBUG = debug(true, arguments);
 
-				var tds = subelement;
-				GM_log("tds.length=", tds.length);
+				var tds = $(subelement);
+				DEBUG && GM_log("tds.length=", tds.length);
 				DEBUG && GM_log("tds=", tds);
 
 				tds.each(function(index, element)
@@ -11005,22 +11026,50 @@ function doitReady()
 
 					DEBUG && GM_log("text=", text);
 
-					var textparts = text.match(/(.* Loan )(\d+)(.*)/);
+					/* e.g.
+					 * Recovered from Charged-off Loan 1006769
+					 * Credit for ineligible Loan ID 24736098
+					 */
+					var textparts = text.match(/(.* (Loan|Loan ID) )(\d+)(.*)/);	
 
 					DEBUG && GM_log("textparts=", textparts);
 
 					if(!textparts)	// ignore e.g. Funds Transfer from Folio Investing account, Loan ...
 						return;
 
-					var loanId = textparts[2];
+					var loanId = textparts[3];
 					
 					DEBUG && GM_log("loanId=", loanId);
 
 					var url = loanDetailURL(loanId);
 
-					var html = sprintf('%s<a href="%s">%s</a>%s', textparts[1], url, textparts[2], textparts[3]);
+					var html = sprintf('%s<a href="%s">%s</a>%s', textparts[1], url, textparts[3], textparts[4]);
 					
 					element.html(html);
+				});
+			});
+
+		waitForElementLoop("#lender-activity-div tbody.yui-dt-data", "td.yui-dt-col-amountWrapper"
+			, function getLenderActivity_lenderActivitycallback(element, subelement)
+			{
+			var DEBUG = debug(false, arguments);
+
+				// change rounded values to un-rounded title values
+				var tds = $(subelement);
+				DEBUG && GM_log("tds.length=", tds.length);
+				DEBUG && GM_log("tds=", tds);
+
+				tds.each(function(index, element)
+				{
+					DEBUG && GM_log("index=", index, " element=", element);
+					
+					element = $(element);
+
+					var div = element.find("div");
+
+					var title = div.prop('title');
+
+					div.text(title);
 				});
 			});
 
