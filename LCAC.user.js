@@ -94,7 +94,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4681 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4716 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -286,8 +286,11 @@ function debug(DEBUG2, arguments2, printArgs)
  */
 function timestamp(funcnameOrArguments, messageOrReset)
 {
+	if(!DEBUG)
+		return;
+
 	if(typeof funcnameOrArguments == 'object')
-		funcnameOrArguments = funcname(funcnameOrArguments);
+		funcnameOrArguments = funcname(funcnameOrArguments);	// we were passed an arguments object, get the funcname from there
 
 	var now = new Date().getTime();
 
@@ -296,9 +299,12 @@ function timestamp(funcnameOrArguments, messageOrReset)
 
 	var elapsed = now - timestamp.funcname2timestamp[funcnameOrArguments];
 
-	var elapsedprev = timestamp.funcname2timestampprev[funcnameOrArguments] != null ? now - timestamp.funcname2timestampprev[funcnameOrArguments] : null;
+	var elapsedPrev = 
+		timestamp.funcname2timestampprev[funcnameOrArguments] != null 
+		? now - timestamp.funcname2timestampprev[funcnameOrArguments] 
+		: null;
 
-	GM_log("TIMESTAMP: " + funcnameOrArguments + " " + messageOrReset + " elapsed=" + elapsed + "ms" + (elapsedprev ? " elapsedprev=" + elapsedprev : ''));
+	GM_log("TIMESTAMP: " + funcnameOrArguments + " " + messageOrReset + " elapsed=" + elapsed + "ms" + (elapsedPrev ? " elapsedPrev=" + elapsedPrev : ''));
 	
 	timestamp.funcname2timestampprev[funcnameOrArguments] = now;
 }
@@ -1379,9 +1385,11 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	}
 }
 	
-function doPaymentHistory(vars, datatable)
+function doPaymentHistory(vars, datatable, orderDate)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+	
+	DEBUG && GM_log(FUNCNAME + " vars=", vars);
 
 	var rs = datatable.getRecordSet();
 	DEBUG && GM_log("rs=", rs);
@@ -1392,7 +1400,7 @@ var DEBUG = debug(false, arguments);
 	 */
 	var duplicateCount = 0;
 	var record1 = records[records.length - 1];
-	DEBUG && GM_log("doPaymentHistory() first loop");
+	DEBUG && GM_log(FUNCNAME + " first loop");
 	for(var index = records.length - 2;
 		index >= 0;
 		index--)	// start at the end and go up so we can delete rows
@@ -1456,6 +1464,7 @@ var DEBUG = debug(false, arguments);
 	 * ChargedOff (no space)
 	 */
 	var serviceFeeTotal = 0;
+	var serviceFeeTotalAfterOrderDate = 0;
 	var paymentTotal = 0;
 	var lateFeeTotal = 0;
 	
@@ -1467,7 +1476,7 @@ var DEBUG = debug(false, arguments);
 	var dueDate;
 	
 	/* There's always at least 1 row in the table */
-	DEBUG && GM_log("doPaymentHistory() second loop");
+	DEBUG && GM_log(FUNCNAME + " second loop");
 	var rowcount = -1;
 	for(var index = 0;
 		index < records.length;
@@ -1528,7 +1537,7 @@ var DEBUG = debug(false, arguments);
 		 */
 		var principal = parseFloat(record._oData.principal);
 		var interest = parseFloat(record._oData.interest);
-		var investorFees = parseFloat(record._oData.interest);
+		var investorFees = parseFloat(record._oData.investorFees);
 		
 		var payment = {
 			dueDate: dueDate
@@ -1592,10 +1601,17 @@ var DEBUG = debug(false, arguments);
 		lateFeeTotal += lateFee;
 
 		var serviceFee =
-			amount <= 0.01
-			? 0.00
-			: 0.01;	// rounded, minimum is 1 cent
+//			amount <= 0.01
+//			? 0.00
+//			: 0.01;	// rounded, minimum is 1 cent
+			investorFees; // use this instead?
+
 		serviceFeeTotal += serviceFee;
+
+		GM_log("compDate=", compDate, " orderDate=", orderDate, " compDate > orderDate", (compDate > orderDate));
+
+		if(compDate > orderDate)
+			serviceFeeTotalAfterOrderDate += serviceFee;
 	}
 			
 	var dueDateTrue = new Date(paymentHistory.first.dueDate);
@@ -1604,6 +1620,7 @@ var DEBUG = debug(false, arguments);
 	paymentHistory.first.dueDateTrue = dueDateTrue;
 
 	vars.serviceFeeTotal = serviceFeeTotal;
+	vars.serviceFeeTotalAfterOrderDate = serviceFeeTotalAfterOrderDate;
 
 	/* find the arrears date, the most recent payment */
 	var arrearsString, arrearsDate;
@@ -1701,12 +1718,42 @@ function doLoanPerfPart2(vars)
 	paginator.set('rowsPerPageOptions', options);
 	paginator.setRowsPerPage(999);
 
-	var paymentHistory = doPaymentHistory(vars, datatable);	// get this before we change it
+	var note = vars.noteId == null ? null : getStoredNote(vars.noteId);
+	GM_log(FUNCNAME + " note=", note);
+
+	var orderDate = note && note.orderDate ? Dates.parse(note.orderDate, "yyyyMMdd") : null;
+	GM_log("orderDate=", orderDate);
+
+	var paymentHistory = doPaymentHistory(vars, datatable, orderDate);	// get this before we change it
 
 	scanLoanPerf(vars.loanId, $("body"), vars);
+	
+	doLoanPerfPart2_1(vars);	// ficoTrend is attached in here
 
-	doLoanPerfPart2_0(vars);
+	/* compare payment date with FICO date and if FICO date is too old alert the user */
+	var diffms = paymentHistory.firstCompletedOrIssuedDate - new Date(vars.ficoTrend.finalDate);
 
+	GM_log("diffms=", diffms);
+
+	var monthsDiff = diffms / (1000.0 * 60 * 60 * 24 * 30);
+
+	GM_log("monthsDiff=", monthsDiff);
+
+	if(monthsDiff > 2)
+	{
+		$(window).one('focus', function() 
+		{
+			alert("LCAC: " + sprintf("FICO trend data is %0.1f months out of date", monthsDiff));
+		});
+	}
+	
+
+
+	setTimeout(function()	// wait a bit
+	{
+		doLoanPerfPart2_2(vars, note);	// we have to retrieve the stored note for this part, so do it asynchronously
+	}, 100);
+	
 	var formatCellOrig = datatable.formatCell;
 	datatable.formatCell = function doLoanPerfPart2_datatable_formatCell_impl( elLiner , oRecord , oColumn )
 	{
@@ -1831,16 +1878,6 @@ https://www.lendingclub.com/account/loanPerf.action?loan_id=2227709&order_id=132
 	return paymentHistory;
 }
 
-/* kind of slow with the compression, do in the background */
-function doLoanPerfPart2_0(vars)
-{
-	doLoanPerfPart2_1(vars);
-
-	setTimeout(function()
-	{
-		doLoanPerfPart2_2(vars);	// can be slow now that we compress stored note data
-	}, 1000);
-}
 
 function setTitle(title)
 {
@@ -1891,17 +1928,40 @@ var DEBUG = debug(true, arguments);
 	 */
 	var ficoTrend = parseTrendData($("table#trend-data tbody tr"));
 	GM_log("ficoTrend=", ficoTrend);
+
+	vars.ficoTrend = ficoTrend;	// return it through the vars so we can compare it with most recent paymentDate
+	
+	//XXX add as messages not alerts
+	if(ficoTrend.duplicateDateDifferentValue)
+	{
+		$(window).one('focus', function() 
+		{
+			alert("LCAC: Duplicate Dates in FICO trend with DIFFERENT values, first is " + ficoTrend.duplicateDateDifferentValue);
+		});
+	}
+	else if(ficoTrend.duplicateDates)
+	{
+		$(window).one('focus', function() 
+		{
+			alert("LCAC: Duplicate Dates in FICO trend with SAME values, first is " + ficoTrend.duplicateDates);
+		});
+	}
 	
 	var recentCreditScore = parseInt($("th:contains('Recent Credit Score') + td").text());
 	GM_log("recentCreditScore=", recentCreditScore);
 
 	// How often does this happen?
 	//XXX make this a header message instead of an alert
+	GM_log("ficoTrend.finalValue=", ficoTrend.finalValue, " recentCreditScore=", recentCreditScore);
+
 	if(ficoTrend.finalValue != recentCreditScore)
 	{
-		alert("FICO mismatch ficoTrend: " + ficoTrend.finalValue + " recentCreditScore: " + recentCreditScore);
+		$(window).one('focus', function() 
+		{
+			alert("LCAC: FICO mismatch ficoTrend: " + ficoTrend.finalValue + " recentCreditScore: " + recentCreditScore);
+		});
 	}
-	
+
 	var trendGraph = $("<div class='lcac_fico_trendGraph'><label>Credit Score Change*</label><br><span class='creditscorechangegraph'></span></div>");
 	GM_log("trendGraph=", trendGraph);
 
@@ -1911,11 +1971,9 @@ var DEBUG = debug(true, arguments);
 
 	/* wider = longer history */
 	var width =
-		Math.min(800,
-//			Math.max(
-//				400,
-				(ficoTrend.length - 1) * Math.floor(800 / 36)
-//			)
+		Math.min(
+			800
+			, (ficoTrend.length - 1) * Math.floor(800 / 36)
 		);
 	
 	trendGraph.find("span.creditscorechangegraph").sparkline(
@@ -1996,7 +2054,7 @@ var DEBUG = debug(true, arguments);
 			var FUNCNAME = funcname(arguments);
 
 				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert("LCAC:" + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 			});
 		}
 	}
@@ -2023,12 +2081,9 @@ var DEBUG = debug(true, arguments);
 	attachLocalStorageCommentListener();
 }
 
-function doLoanPerfPart2_2(vars)
+function doLoanPerfPart2_2(vars, note)
 {
 var DEBUG = debug(true, arguments);
-
-	var note = vars.noteId == null ? null : getStoredNote(vars.noteId);
-	GM_log("note=", note);
 
 	if(!note || !note.amountLent)
 	{
@@ -2046,7 +2101,7 @@ var DEBUG = debug(true, arguments);
 		$(":header:contains('Received Payments')")
 			.closest("div");
 
-	GM_log("lcac_ReceivedPayments=", lcac_ReceivedPayments);
+	DEBUG && GM_log("lcac_ReceivedPayments=", lcac_ReceivedPayments);
 
 	lcac_ReceivedPayments
 		.addClass('lcac_receivedpayments')
@@ -2055,25 +2110,32 @@ var DEBUG = debug(true, arguments);
 		
 	/*XXX if you buy a note, then sell it, then buy it again, what value goes in amountLent? */
 
-	var profitLoss = note.paymentReceived + vars.recoveries - note.amountLent;	// excludes Fees!?!?
+	GM_log("note=", note);
+	GM_log("vars=", vars);
+
+	/*XXX vars.serviceFeeTotal is from PaymentHistory but we might have bought the
+	 * loan at a later time. We'd have to compare Order Date to the Settlement Date
+	 * in the Payment History and only count the ones after
+	 */
+	var profitLoss = note.paymentReceived + vars.recoveries - note.amountLent - vars.serviceFeeTotalAfterOrderDate;	
+	var profitLossTitle = sprintf("%0.2f (payments) + %0.2f (recoveries) - %0.2f (amountLent) - %0.2f (fees after orderDate)", note.paymentReceived, vars.recoveries, note.amountLent, vars.serviceFeeTotalAfterOrderDate);
 
 	GM_log("profitLoss=", profitLoss);
 
 	$("table.lcac_ReceivedPayments tbody")
-		.append(note.orderDate < note.issueDate ? '' : (''
-			+ sprintf("<tr title='%s'><th>Order Date*</th><td>%s</td></tr>",
-				"This value comes from " + notesRawDataURL,
-				note.orderDate)
-			))
 		.append(''
-			+ sprintf("<tr title='%s'><th>Investment*</th><td>$%0.2f</td></tr>",
-				"This value comes from " + notesRawDataURL,
-				note.amountLent)
-			+ sprintf("<tr class='sub-total' title='%s'><th>Payments Received*</th><td>$%0.2f</td></tr>",
-				"This value comes from " + notesRawDataURL,
-				note.paymentReceived)
-			+ sprintf("<tr class='sub-total'><th title='includes Recoveries, excludes Fees'>Profit/Loss*</th><td>%s</td></tr>",
-				negative2parens("$%0.2f", profitLoss))
+			+ sprintf("<tr title='%s'><th>Order Date*</th><td>%s</td></tr>"
+				, "This value comes from " + notesRawDataURL
+				, note.orderDate < note.issueDate ? 'At Origination' : note.orderDate)
+			+ sprintf("<tr title='%s'><th>Investment*</th><td>$%0.2f</td></tr>"
+				, "This value comes from " + notesRawDataURL
+				, note.amountLent)
+			+ sprintf("<tr class='sub-total' title='%s'><th>Payments Received*</th><td>$%0.2f</td></tr>"
+				, "This value comes from " + notesRawDataURL
+				, note.paymentReceived)
+			+ sprintf("<tr class='sub-total' title='%s'><th>Profit/Loss*</th><td>%s</td></tr>"
+				, profitLossTitle
+				, negative2parens("$%0.2f", profitLoss))
 			);
 }
 
@@ -2100,7 +2162,7 @@ var DEBUG = debug(false, arguments);
 	var upcomingPaymentsBody = $(":header:contains('Upcoming Payments') + table tbody");
 
 	if(upcomingPaymentsBody.length == 0)
-		alert("upcomingPaymentsBody.length=" + upcomingPaymentsBody.length);
+		alert("LCAC: upcomingPaymentsBody.length=" + upcomingPaymentsBody.length);
 
 	$("th:contains(Accrued Interest)").next("td").append(sprintf("[%0.1fm]", accruedInterestInMonths));
 
@@ -2221,14 +2283,14 @@ var DEBUG = debug(false, arguments);
 						{
 							if(data.match(/You've been logged out/))
 							{
-								alert("Not logged in");
+								alert("LCAC: Not logged in");
 								lcac_togglesale.prop('checked', false);
 								return;
 							}
 						}
 						else if(typeof data != 'object')
 						{
-							alert(FUNCNAME + " unhandled typeof data=" + typeof data);
+							alert("LCAC: " + FUNCNAME + " unhandled typeof data=" + typeof data);
 							return;
 						}
 						
@@ -2954,7 +3016,7 @@ function saveStoredNotes(notes)
 	{
 		var FUNCNAME = funcname(arguments);
 
-		alert(FUNCNAME + " ex=" + ex);
+		alert("LCAC: " + FUNCNAME + " ex=" + ex);
 		GM_log(FUNCNAME + " ex=", ex, " ex.stack=", ex.stack);
 	}
 }
@@ -2972,7 +3034,7 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	}
 	catch(ex)
 	{
-		alert(FUNCNAME + " ex=" + ex);
+		alert("LCAC: " + FUNCNAME + " ex=" + ex);
 		GM_log(FUNCNAME + " ex=", ex, " ex.stack=", ex.stack);
 	}
 
@@ -3051,7 +3113,7 @@ function saveStoredData()
 	{
 		var FUNCNAME = funcname(arguments);
 
-		alert(FUNCNAME + " ex=" + ex);
+		alert("LCAC: " + FUNCNAME + " ex=" + ex);
 		GM_log(FUNCNAME + " ex=", ex, " ex.stack=", ex.stack);
 	}
 }
@@ -3148,14 +3210,19 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 
 	if(loan == null)
 	{
-		DEBUG && GM_log("returning null");
+		DEBUG && GM_log(FUNCNAME + " loan=", loan, "  returning null");
 		return null;
 	}
 
-	var interestRate = parseFloat(loan.interestRate);
+	var interestRate = loan.interestRate;
 
-	DEBUG && GM_log("loan.interestRate=" + loan.interestRate);
-	DEBUG && GM_log("interestRate=" + interestRate);
+	if(typeof interestRate === 'string')
+	{
+		GM_log(FUNCNAME + " loan.interestRate is a string, parsing it");
+		interestRate = parseFloat(interestRate);
+	}
+
+	DEBUG && GM_log(FUNCNAME + " returning " + interestRate);
 
 	return interestRate;
 }
@@ -3424,8 +3491,13 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 </tr>
 	 */
 
-	var values = [];
+	var trend = [];
 	var datePrev = null;
+	var valPrev = null;
+
+	trend.duplicateDates = null;
+	trend.duplicateDateDifferentValue = null;
+
 	trs.each(function()
 	{
 		var tds = $(this).find("td");
@@ -3434,26 +3506,59 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		
 		var date = tds.eq(1).text();
 		date = dateFormat(new Date(date), '-');
-//		GM_log(FUNCNAME + "date=", date);
 
-		if(datePrev == null || date != datePrev)	// there can be duplicates in here
-			values.push({val: val, date: date});
+		// there can be duplicate dates in here
+		if(datePrev != null && date == datePrev)
+		{
+			GM_log("DUPLICATE date=", date, " datePrev=", datePrev);
+
+			if(!trend.duplicateDates)
+				trend.duplicateDates = date;
+
+			if(val != valPrev)
+			{
+				GM_log("DUPLICATE val=", val, " valPrev=", valPrev);
+
+				if(!trend.duplicateDateDifferentValue)
+					trend.duplicateDateDifferentValue = date + " " + val + " " + valPrev;
+			}
+		}
+		else
+		{
+			trend.push({val: val, date: date});
+		}
 
 		datePrev = date;
+		valPrev = val;
 	});
+				
 
-	/* YYY sparkline fails if there's just one single value */
-	if(values.length == 1)
-		values.push(values[0]);
+	/* YYY sparkline fails if there's just one single value, so duplicate the single value */
+	if(trend.length == 1)
+		trend.push(trend[0]);
 
 	var vals = [];
-	for(var index = 0; index < values.length; index++)
-		vals.push(values[index].val);
-	values.vals = vals;
+	var dates = [];
+	for(var index = 0; index < trend.length; index++)
+	{
+		vals.push(trend[index].val);
+		dates.push(trend[index].date);
+	}
+	trend.vals = vals;
+	trend.dates = dates;
 
-	values.finalValue = vals.length > 0 ? vals[vals.length - 1] : null;
+	if(vals.length > 0)
+	{
+		trend.finalValue = vals[vals.length - 1];
+		trend.finalDate = dates[vals.length - 1];
+	}
+	else
+	{
+		trend.finalValue = null;
+		trend.finalDate = null;
+	}
 
-	return values;
+	return trend;
 }
 
 function getComment(comment_loanId)
@@ -3613,7 +3718,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 	if(interestRate < 0.02)
 	{
 		GM_log(FUNCNAME + "... loanId=" + loanId + " interestRate=" + interestRate);
-		alert(FUNCNAME + " loanId=" + loanId + " interestRate=" + interestRate);
+		alert("LCAC: " + FUNCNAME + " loanId=" + loanId + " interestRate=" + interestRate);
 		interestRate = null;
 	}
 
@@ -4064,7 +4169,7 @@ var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 		inProcessing = null;
 
 	var noFee = dom.find("div#noFee:contains(No Fee)");
-	noFee = noFee.length > 0;
+	noFee = noFee.length > 0;	// booleanify
 
 	/* all charged off loans have a Recoveries field, but it's often just $0.00 */
 	var recoveries = dom.find("th:contains(Recoveries) + td");
@@ -4279,7 +4384,7 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 		DEBUG && GM_log(FUNCNAME + " exportWindow=", exportWindow);
 
 		if(exportWindow == null)
-			alert("Could not open a new window. Are popups blocked?");
+			alert("LCAC: Could not open a new window. Are popups blocked?");
 
 		return;
 	}
@@ -4288,7 +4393,7 @@ var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
 	var exportWindow = window.open('', "_blank");
 	if(exportWindow == null)
 	{
-		alert("Could not open a new window. Are popups blocked?");
+		alert("LCAC: Could not open a new window. Are popups blocked?");
 		return;
 	}
 
@@ -4387,7 +4492,7 @@ function getAvailableCash(getAvailableCash_callback)
 var FUNCNAME = funcname(arguments);
 
 	var url = '/browse/cashBalanceAj.action?rnd=' + new Date().getTime();
-	$.get(url, function(data)	/* callback */
+	$.get(url, function getAvailableCash_get_callback(data)	/* callback */
 	{
 		if(!data || data == "")
 		{
@@ -4404,7 +4509,7 @@ var FUNCNAME = funcname(arguments);
 		getAvailableCash_callback(availableCash);
 
 	})
-	.fail(function(jqXHR, textStatus, errorThrown)
+	.fail(function getAvailableCash_get_fail(jqXHR, textStatus, errorThrown)
 	{
 		GM_log("cashBalanceAj error textStatus=", textStatus, " errorThrown=", errorThrown);
 		getAvailableCash_callback(null);
@@ -4479,7 +4584,7 @@ function ffnRemoveFromCart(loanId, noteId, callback)
 		GM_log("ffnRemoveFromCart_get_success() data=", data);
 		if(!data.completionSuccess)
 		{
-			alert("completionSuccess=" + data.completionSuccess+ " data=" + (data ? JSON.stringify(data) : data));
+			alert("LCAC: completionSuccess=" + data.completionSuccess+ " data=" + (data ? JSON.stringify(data) : data));
 		}
 
 		callback();
@@ -4532,7 +4637,7 @@ function ffnAddToCart2(checked, callback)
 		GM_log("ffnAddToCart2_get_success() data=", data);
 		if(checked && data.cartSize == 0)	// if we checked one the cartSize should be > 0
 		{
-			alert("checked=" + checked + " data=" + data ? JSON.stringify(data) : data);
+			alert("LCAC: checked=" + checked + " data=" + data ? JSON.stringify(data) : data);
 		}
 
 		callback();
@@ -4902,7 +5007,7 @@ function addCells(notesTable,
 	addDeleteRowButton,
 	addNoteIdColumn)
 {
-var DEBUG = debug(true, arguments), FUNCNAME = funcname(arguments);
+var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 DEBUG && timestamp(arguments, true);
 
 	var notesTable0 = notesTable.get(0);
@@ -4940,7 +5045,7 @@ DEBUG && timestamp(arguments, true);
 	//OPTIMIZEME 4 seconds
 	trs.each(function(index, tr0)
 	{
-	var DEBUG = debug(true && index < 10, arguments);
+	var DEBUG = debug(false && index < 10, arguments);
 
 		var tr = $(tr0);
 
@@ -4961,7 +5066,7 @@ DEBUG && timestamp(arguments, true);
 			tr0.insertCell(notesTable0.noteIdColumnIndex);
 		}
 
-		/* add interestRate cell */
+		/* add interestRate cell, e.g. Foliofn > My Account */
 		var interestRateCell = null;
 		if(addInterestRateColumn)
 		{
@@ -5078,9 +5183,10 @@ DEBUG && timestamp(arguments, true);
 
 	DEBUG && timestamp(arguments, "9");
 }
+
 function colorCells(notesTable)
 {
-var DEBUG = debug(false, arguments);
+var DEBUG = debug(false, arguments), FUNCNAME = funcname(arguments);
 
 	var notesTable0 = notesTable.get(0);
 
@@ -5141,9 +5247,18 @@ var DEBUG = debug(false, arguments);
 
 		var interestRateAssumed = false;
 		var interestRate = parseInterestRate(loanId, tds.eq(notesTable0.interestRateColumnIndex).html());
+		
+		var loan = null;	// only fetch this if we need it
+
 		if(interestRate == null)
 		{
-			interestRate = getStoredInterestRateByLoanId(loanId);
+//			interestRate = getStoredInterestRateByLoanId(loanId);
+
+			if(!loan) loan = getStoredLoan(loanId);
+			GM_log(FUNCNAME + " loan.interestRate=", loan.interestRate);
+
+			interestRate = loan.interestRate;
+
 			if(interestRate == null)
 			{
 				interestRateAssumed = true;
@@ -5190,34 +5305,73 @@ var DEBUG = debug(false, arguments);
 			var paymentsReceived = text2Value(tds.eq(notesTable0.paymentsReceivedColumnIndex).text());
 			var investment = text2Value(tds.eq(notesTable0.investmentColumnIndex).text());
 
+			var td = tds.eq(notesTable0.paymentsReceivedColumnIndex);
+
 			if(paymentsReceived == 0)
-				tds.eq(notesTable0.paymentsReceivedColumnIndex).addClass('lcac_orangeLow');
+				td.addClass('lcac_orangeLow');
 			else if(paymentsReceived < investment)
 			{
 				if(loanStatus.match(/Fully.*Paid/))
-					tds.eq(notesTable0.paymentsReceivedColumnIndex).addClass('lcac_redMed');	// no chance of getting paid back now
+					td.addClass('lcac_redMed');	// no chance of getting paid back now
 				else if(paymentsReceived < investment / 2)
-					tds.eq(notesTable0.paymentsReceivedColumnIndex).addClass('lcac_yellowMed');
+					td.addClass('lcac_yellowMed');
 				else
-					tds.eq(notesTable0.paymentsReceivedColumnIndex).addClass('lcac_yellowLow');
+					td.addClass('lcac_yellowLow');
 			}
 			else // paymentsReceived >= investment
-				tds.eq(notesTable0.paymentsReceivedColumnIndex).addClass('lcac_greenLow');
+				td.addClass('lcac_greenLow');
 
-			if(GAINLOSS)
+			if(GAINLOSS && !td.hasClass('lcac_gainloss'))
 			{
-				var gainloss = paymentsReceived - investment;
+				if(!loan) loan = getStoredLoan(loanId);	// this can really slow down a full Notes table
 
-				var td = tds.eq(notesTable0.paymentsReceivedColumnIndex);
+				if(loan.noFee)
+					GM_log(FUNCNAME + " loan=", loan, " loan.noFee=", loan.noFee);
+
+				// should be zero if a noFee loan
+				var investorFeesEstimate = 
+					loan.noFee 
+					? 0.0 
+					: paymentsReceived * 0.01;
+
+				var gainloss = paymentsReceived - investment - investorFeesEstimate;
+
+				/* loans.action (Notes): if value is >0 it wraps it in a span, otherwise it's just the div
+			
+<td headers="yui-dt0-th-paymentReceivedScale10 " class="numeric paymentsReceivedToDate yui-dt0-col-paymentReceivedScale10 yui-dt-col-paymentReceivedScale10 yui-dt-asc yui-dt-sortable yui-dt-resizeable lcac_orangeLow" id="yui-gen572">
+	<div class="yui-dt-liner lcac_gainloss" id="yui-gen571">$0.00</div>
+</td>
+			 	
+				 * versus
+
+<td headers="yui-dt0-th-paymentReceivedScale10 " class="numeric paymentsReceivedToDate yui-dt0-col-paymentReceivedScale10 yui-dt-col-paymentReceivedScale10 yui-dt-asc yui-dt-sortable yui-dt-resizeable lcac_greenLow" id="yui-gen627">
+	<div class="yui-dt-liner" id="yui-gen628">
+		<span style="border-bottom:dotted 1px" class="lcac_gainloss" id="yui-gen629">$0.10</span>
+	</div>
+</td>
+				 */
 				var innermost = td.find("*:not(:has(*))");	// innermost element
-				if(innermost.length == 0)
-					innermost = td;
+				DEBUG && GM_log("BEFORE innermost=", innermost);
 
-				if(!innermost.hasClass('lcac_gainloss'))
+				if(innermost.length == 0)
 				{
-					innermost.addClass('lcac_gainloss');
-					innermost.append(sprintf('%+0.2f', gainloss));
+					GM_log("innermost.length=", innermost.length, " using the td instead");
+					innermost = td;
 				}
+				else
+				{
+					innermost = innermost.closest("div, td");
+				}
+				
+				DEBUG && GM_log("AFTER innermost=", innermost);
+
+
+				td.addClass('lcac_gainloss');
+				innermost.append(
+					sprintf("<span title='LCAC: paymentsReceived - investment - estimated fees (%0.2f)'>%+0.2f</span>"
+						, investorFeesEstimate
+						, gainloss
+					));
 			}
 		}
 
@@ -5272,7 +5426,7 @@ var DEBUG = debug(true, arguments);
 		DEBUG && GM_log("column=" + column);
 
 		var newTH = trHead0.insertCell(column);	//investmentColumnIndex on LC Browse Notes
-		$(newTH).replaceWith("<th class='loanId LCAC' style='white-space:nowrap;'>Loan ID*</th>");
+		$(newTH).replaceWith("<th class='loanId LCAC' style='white-space:nowrap;' title='added by LCAC'>Loan ID*</th>");
 
 		if(trFoot)
 		{
@@ -5293,7 +5447,7 @@ var DEBUG = debug(true, arguments);
 			: -1;
 		GM_log("column=" + column);
 		var newTH = trHead0.insertCell(column);	//investmentColumnIndex on LC Browse Notes
-		$(newTH).replaceWith("<th class='noteId' style='white-space:nowrap;'>Note ID*</th>");
+		$(newTH).replaceWith("<th class='noteId' style='white-space:nowrap;' title='added by LCAC'>Note ID*</th>");
 
 		if(trFoot)
 		{
@@ -5309,7 +5463,7 @@ var DEBUG = debug(true, arguments);
 	if(addInterestRateColumn)
 	{
 		var newTH = trHead0.insertCell(notesTable0.loanStatusColumnIndex);
-		$(newTH).replaceWith("<th class='storedRate' style='white-space:nowrap;'>Stored Rate*</th>");
+		$(newTH).replaceWith("<th class='storedRate' style='white-space:nowrap;' title='added by LCAC'>Stored Rate*</th>");
 		
 		if(trFoot)
 		{
@@ -5325,7 +5479,7 @@ var DEBUG = debug(true, arguments);
 	if(addMarkupColumn)
 	{
 		var newTH = trHead0.insertCell(notesTable0.askingPriceColumnIndex + 1);
-		$(newTH).replaceWith("<th class='lcac_markup'>Markup*</th>");
+		$(newTH).replaceWith("<th class='lcac_markup' title='added by LCAC'>Markup*</th>");
 		
 		if(trFoot)
 		{
@@ -5349,7 +5503,7 @@ var DEBUG = debug(true, arguments);
 		var newTH = trHead0.insertCell(-1);	// at the end or the header
 //		var newTH = trHead0.insertCell(notesTable0.markupColumnIndex);
 
-		$(newTH).replaceWith("<th class='lcac_irr' onclick='event.stopPropagation();'>IRR* (PMT est.)</th>");
+		$(newTH).replaceWith("<th class='lcac_irr' onclick='event.stopPropagation();' title='added by LCAC'>IRR* (PMT est.)</th>");
 		
 		if(trFoot)
 		{
@@ -5373,7 +5527,7 @@ var DEBUG = debug(true, arguments);
 		var newTH = trHead0.insertCell(-1);	// at the end or the header
 
 		$(newTH).replaceWith(
-			"<th class='lcac_commentColumn' onclick='event.stopPropagation();' style='white-space:nowrap;'>Comment*</th>");
+			"<th class='lcac_commentColumn' onclick='event.stopPropagation();' style='white-space:nowrap;' title='added by LCAC'>Comment*</th>");
 
 		if(trFoot)
 			trFoot.get(0).insertCell(-1);	// at the end of the footer	(trFoot could be empty)
@@ -6362,7 +6516,7 @@ function doitReady()
 			if(funcbody.match(/\.\.\./))	
 			{
 				GM_log("ellipsis");
-				alert("ellipsis detected! func truncated? please paste a clean copy");
+				alert("LCAC: ellipsis detected! func truncated? please paste a clean copy");
 				continue;
 			}
 
@@ -7012,9 +7166,9 @@ function doitReady()
 					tr.addClass('lcac_termStrict');
 				}
 
-				GM_log("headerLimits.term=", headerLimits.term);
-				GM_log("headerLimits.remainingPaymentsMax=", headerLimits.remainingPaymentsMax);
-				GM_log("headerLimits.remainingPaymentsMin=", headerLimits.remainingPaymentsMin);
+				DEBUG && GM_log("headerLimits.term=", headerLimits.term);
+				DEBUG && GM_log("headerLimits.remainingPaymentsMax=", headerLimits.remainingPaymentsMax);
+				DEBUG && GM_log("headerLimits.remainingPaymentsMin=", headerLimits.remainingPaymentsMin);
 
 				if(headerLimits.remainingPaymentsMax != 0	// this is a string
 				&& remainingPayments > headerLimits.remainingPaymentsMax)
@@ -7397,7 +7551,7 @@ function doitReady()
 
 			if(responseText.match(/Member Sign-In/))		// we've been logged out
 			{
-				alert("Not logged in");
+				alert("LCAC: Not logged in");
 				if(getAccountNotesRawData_callback)
 					getAccountNotesRawData_callback(null);
 				return;
@@ -7424,7 +7578,7 @@ function doitReady()
 		.fail(function(jqXHR, textStatus, errorThrown)
 		{
 			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert("LCAC: " + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 
@@ -7452,7 +7606,7 @@ function doitReady()
 
 				if(responseText.match(/Member Sign-In/))		// we've been logged out
 				{
-					alert("Not logged in");
+					alert("LCAC: Not logged in");
 					if(getFfnNotesRawData_callback)
 						getFfnNotesRawData_callback(null);
 					return;
@@ -7478,7 +7632,7 @@ function doitReady()
 			var FUNCNAME = funcname(arguments);
 
 				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert("LCAC: " + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 			});
 		})
 		.fail(function setupURL_fail(jqXHR, textStatus, errorThrown)
@@ -7486,7 +7640,7 @@ function doitReady()
 		var FUNCNAME = funcname(arguments);
 
 			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert("LCAC: " + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 		});
 	}
 	
@@ -7497,7 +7651,7 @@ function doitReady()
 		var lenderActivityWindow = window.open(null, "_blank");
 		if(lenderActivityWindow == null)
 		{
-			alert("Could not open a window. Are popups blocked?");
+			alert("LCAC: Could not open a window. Are popups blocked?");
 			return;
 		}
 		
@@ -7607,7 +7761,7 @@ function doitReady()
 		var FUNCNAME = funcname(arguments);
 
 			GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-			alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+			alert("LCAC: " + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 
 			callback(null);
 		});
@@ -7707,7 +7861,7 @@ function doitReady()
 			var FUNCNAME = funcname(arguments);
 
 				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert("LCAC: " + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 				reject(null);
 			});
 		});
@@ -7734,7 +7888,7 @@ function doitReady()
 
 				if(responseText.match(/Member Sign-In/))		// we've been logged out
 				{
-					alert("Not logged in");
+					alert("LCAC: " + "Not logged in");
 					reject(null);
 					return;
 				}
@@ -7768,7 +7922,7 @@ function doitReady()
 			var FUNCNAME = funcname(arguments);
 
 				GM_log(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
-				alert(FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
+				alert("LCAC: " + FUNCNAME + " textStatus=" + textStatus + " errorThrown=" + errorThrown);
 				reject(null);
 			});
 		});
@@ -7875,7 +8029,7 @@ function doitReady()
 					var scriptsString = scripts.map(function() { return this.src ? ("src=" + this.src) : ("text=" + this.text.replace(/[\r\n\s]+/g, ' ').substr(0, 32) + "..."); }).toArray().join('\n');
 					GM_log("removing scripts: " + scriptsString);
 
-					if(false && TESTING) alert("removing scripts: " + scriptsString);
+					if(false && TESTING) alert("LCAC: " + "removing scripts: " + scriptsString);
 
 					scripts.remove();
 				}
@@ -8020,7 +8174,7 @@ function doitReady()
 				var note = getStoredNote(noteId);
 				if(!note)
 				{
-					alert("Unknown Order Id");
+					alert("LCAC: " + "Unknown Order Id");
 					return;
 				}
 
@@ -8349,7 +8503,7 @@ function doitReady()
 				
 				if(ok.length <= 0)
 				{
-					alert("No data");
+					alert("LCAC: " + "No data");
 					return;
 				}
 
@@ -8364,7 +8518,7 @@ function doitReady()
 					catch(ex)
 					{
 						GM_log(FUNCNAME + " ex=", ex, " ", ex.stack);
-						alert(FUNCNAME + " ex=" + ex);
+						alert("LCAC: " + FUNCNAME + " ex=" + ex);
 					}
 				}
 			});
@@ -8662,7 +8816,7 @@ function doitReady()
 
 					if(name == '')
 					{
-						alert("name cannot be empty");
+						alert("LCAC: " + "name cannot be empty");
 						return;
 					}
 
@@ -8823,7 +8977,7 @@ function doitReady()
 			DEBUG && GM_log("noteIdPattern=" + noteIdPattern);
 			if(!noteIdPattern)
 			{
-				alert("Please enter a note Id");
+				alert("LCAC: " + "Please enter a note Id");
 				return;
 			}
 
@@ -8840,7 +8994,7 @@ function doitReady()
 
 				if(notes.length >= MAXSEARCHNOTES)
 				{
-					alert('' + notes.length + " notes found, only opening " + MAXSEARCHNOTES);
+					alert("LCAC: " + '' + notes.length + " notes found, only opening " + MAXSEARCHNOTES);
 					notes = notes.splice(0, MAXSEARCHNOTES);	// index, howmany
 				}
 
@@ -9567,7 +9721,7 @@ function doitReady()
 					GM_log("calling autoselectFunc() ex=" + ex + "\n" + ex.stack);
 					if(!autoselectFuncAlerted)
 					{
-						alert("error initing your autoselect function\nex=" + ex + "\n" + ex.message /*+ "\n" + ex.stack*/);
+						alert("LCAC: " + "error initing your autoselect function\nex=" + ex + "\n" + ex.message /*+ "\n" + ex.stack*/);
 						autoselectFuncAlerted = true;
 					}
 				}
@@ -9596,7 +9750,7 @@ function doitReady()
 					interestAnomalyAlerted = true;
 					setTimeout(function()
 					{
-						alert(
+						alert("LCAC: " + 
 							sprintf("Cached values out of date.%s Visit LC Account page to reload.",
 								((TESTING || true) && indexMin != null
 								? sprintf(" %d notes, Max %f, Note Id %d.",
@@ -9952,7 +10106,7 @@ function doitReady()
 								{
 									if(responseText.match(/Member Sign-In/))		// we've been logged out
 									{
-										alert("Not logged in");
+										alert("LCAC: " + "Not logged in");
 										commentTextBox.val(commentOrig);	// reset it
 										commentTextBox.trigger('change');	// fire the event to notify the listeners
 										return;
@@ -9974,7 +10128,7 @@ function doitReady()
 								})
 								.fail(function(jqXHR, textStatus, errorThrown)
 								{
-									alert("salePriceButton_click() textStatus=" + textStatus + " errorThrown=" + errorThrown);
+									alert("LCAC: " + "salePriceButton_click() textStatus=" + textStatus + " errorThrown=" + errorThrown);
 
 									commentTextBox.val(commentOrig);	// reset it
 									commentTextBox.trigger('change');	// fire the event to notify the listeners
@@ -10634,7 +10788,7 @@ function doitReady()
 
 				if(adjustAskingPriceAutoFunc == null)
 				{
-					alert("Adjust Asking Price Auto function is unset");
+					alert("LCAC: " + "Adjust Asking Price Auto function is unset");
 					return;
 				}
 
@@ -10737,7 +10891,7 @@ function doitReady()
 
 						setTimeout(function()
 						{
-							alert(
+							alert("LCAC: " + 
 								sprintf("%d Accrued Interest Anomalies! Max %f, Note Id %d",
 									interestAnomaly.length,
 									interestAnomaly[0].accruedInterestDiff,
@@ -10748,7 +10902,7 @@ function doitReady()
 				catch(ex)
 				{
 					GM_log("adjustAskingPriceAuto() ex=" + ex + "\n" + ex.stack);
-					alert("adjustAskingPriceAuto() ex=" + ex);
+					alert("LCAC: " + "adjustAskingPriceAuto() ex=" + ex);
 				}
 
 				/* YYY we have click handler on the entire table */
@@ -11136,7 +11290,7 @@ function doitReady()
 	else
 	{
 		if(DEBUG)
-			alert("no match, href=" + href);
+			alert("LCAC: " + "no match, href=" + href);
 	}
 		
 	function scanOrders(button, callbackDone)
@@ -11144,7 +11298,7 @@ function doitReady()
 		var scanOrdersWindow = window.open(null, '_scanOrders');
 		if(scanOrdersWindow == null)
 		{
-			alert("Could not open a window. Are popups blocked?");
+			alert("LCAC: " + "Could not open a window. Are popups blocked?");
 			return;
 		}
 
@@ -11241,7 +11395,7 @@ function doitReady()
 				.fail(function(jqXHR, textStatus, errorThrown)
 				{
 					GM_log("scanOrders_doit() textStatus=", textStatus, " errorThrown=", errorThrown, " url=", url);
-					alert("scanOrders_doit() textStatus=" + textStatus + " errorThrown=" + errorThrown + " url=" + url);
+					alert("LCAC: " + "scanOrders_doit() textStatus=" + textStatus + " errorThrown=" + errorThrown + " url=" + url);
 					scanOrdersWindow.document.write(
 						"<br>Error textStatus=" + textStatus + " errorThrown=" + errorThrown + " url=" + url);
 				});
@@ -11252,7 +11406,7 @@ function doitReady()
 		.fail(function(jqXHR, textStatus, errorThrown)
 		{
 			GM_log("scanOrders() textStatus=", textStatus, " errorThrown=", errorThrown, " url=", url);
-			alert("scanOrders() textStatus=" + textStatus + " errorThrown=" + errorThrown + " url=" + url);
+			alert("LCAC: " + "scanOrders() textStatus=" + textStatus + " errorThrown=" + errorThrown + " url=" + url);
 			scanOrdersWindow.document.write(
 				"<br>Error textStatus=" + textStatus + " errorThrown=" + errorThrown + " url=" + url);
 		});
@@ -11426,7 +11580,7 @@ function doitReady()
 						if(responseText.match(/Member Sign-In/))		// we've been logged out
 						{
 							newline('Not logged in<br>');
-							alert("Not logged in");
+							alert("LCAC: " + "Not logged in");
 							breakloop = true;
 							return;
 						}
@@ -11548,7 +11702,7 @@ function doitReady()
 						if(responseText.match(/Member Sign-In/))		// we've been logged out
 						{
 							newline('Not logged in<br>');
-							alert("Not logged in");
+							alert("LCAC: " + "Not logged in");
 							breakloop = true;
 							return;
 						}
