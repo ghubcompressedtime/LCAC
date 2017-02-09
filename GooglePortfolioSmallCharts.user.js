@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name	GooglePortfolioSmallCharts
 // @namespace  http://use.i.E.your.homepage/
-// @version	0.5
+// @version	0.6
 // @description adds small charts to Google Finance portfolio view
 // @match	 https://www.google.com/finance/portfolio?action=view*
 // @grant	  GM_addStyle
@@ -27,23 +27,58 @@ function doit()
 	GM_addStyle("img.gpsmallcharts { vertical-align:middle;/*makes the TEXT vertical aligned???*/; max-height:95px; }");
 
 	
-	var divPct;
+	var div, divPct, autoupdateInput, autoupdateLabel;
 	if(false)
 	{
 		
-		divPct = $("<div style='z-index: 999; position: fixed; top:10px; right:10px; font-size: x-large'></div>");
-	
-		GM_log("divPct=", divPct);
+		div = $("<div style='z-index: 999; position: fixed; top:10px; right:10px; font-size: x-large'><span id=divPct></span><label id=GPSCautoupdateLabel><input type=checkbox id=GPSCautoupdate>autoupdate</label></div>");
 
-		$("body").append(divPct);
+		$("body").append(div);
 	}
 	else
 	{
-		divPct = $("<div style='text-align: center; font-size: x-large'></div>");
+		div = $("<div style='text-align: center; font-size: x-large'><span id=divPct></span><label id=GPSCautoupdateLabel><input type=checkbox id=GPSCautoupdate>autoupdate</label></div>");
 
-		$("div.appbar-snippet-primary").after(divPct);
+		$("div.appbar-snippet-primary").after(div);
 	}
+
+	GM_log("div=", div);
+		
+	divPct = div.find("#divPct");
+	GM_log("divPct.length=", divPct.length, " divPct=", divPct);
+
+	autoupdateInput = div.find("#GPSCautoupdate");
+	GM_log("autoupdateInput.length=", autoupdateInput.length, " autoupdateInput=", autoupdateInput);
+
+	autoupdateLabel = div.find("#GPSCautoupdateLabel");
+
+	autoupdateInput.change(function autoupdateChecked_change()
+	{
+		GM_log("autoupdateChecked_change()");
+
+		var checked = $(this).is(':checked');
+		
+		GM_log("checked=", checked);
+
+		if(!checked)
+		{
+			GM_log("loopUpdatePctTimeout=", loopUpdatePctTimeout);
+
+			if(loopUpdatePctTimeout)
+			{
+				clearTimeout(loopUpdatePctTimeout);
+				loopUpdatePctTimeout = null;
+			}
+		}
+		else
+		{
+			loopUpdatePct();
+		}
+	});
 	
+	autoupdateInput
+		.prop('checked', false)	// set the initial value
+		.change();	// trigger the event listener
 	
 	function updatePctDiv(changeText)
 	{
@@ -86,8 +121,7 @@ function doit()
 		GM_log("lightness=", lightness);
 
 		divPct.html("<span title='" + new Date() + "'>" + changeText + "</span>");
-		divPct.css("background-color", "hsl(" + hue + ", 100%, " + lightness + "%)");
-
+		div.css("background-color", "hsl(" + hue + ", 100%, " + lightness + "%)");
 	}
 	
 	var changeText = jQ("td:contains(Portfolio value:)").next().text();
@@ -102,14 +136,15 @@ function doit()
 	if(false)
 	downloadAndUpdatePct();	// for testing
 
-//	if(false)
-	loopUpdatePct();
-
 	var backoffseconds = 60;
 	var changeOld = null;
 	
+	var loopUpdatePctTimeout = null;
+
 	function loopUpdatePct()
 	{
+		GM_log("loopUpdatePct()");
+
 		downloadAndUpdatePct(
 			function downloadAndUpdatePct_callback(change)
 			{
@@ -118,29 +153,37 @@ function doit()
 				if(changeOld == null || change != changeOld)
 					backoffseconds = 60;
 				else
-					backoffseconds = Math.min(backoffseconds * 2, 500);
+					backoffseconds = Math.min(backoffseconds * 2, 60 * 60);
 
 				changeOld = change;
 
 				GM_log("calling setTimeout(loopUpdatePct, " + backoffseconds + " * 1000)");
-				setTimeout(loopUpdatePct, backoffseconds * 1000);
+				loopUpdatePctTimeout = setTimeout(loopUpdatePct, backoffseconds * 1000);
 			});
 	}
 
 	function downloadAndUpdatePct(callback)
 	{
-		GM_log("loopUpdatePct()");
+		GM_log("downloadAndUpdatePct()");
         
         GM_log("href=", href);
+
+		autoupdateLabel.contents().last().replaceWith('updating');
 			   
 		$.ajax({
             url: href,
             cache: false,
             data: {
 				"_": $.now()
-			},
-            success: function get_success(data, textStatus, jqXHR)
+			}
+			, fail: function get_fail()
 			{
+				autoupdateLabel.contents().last().replaceWith('autoupdate failed');
+			}
+			, success: function get_success(data, textStatus, jqXHR)
+			{
+				autoupdateLabel.contents().last().replaceWith('autoupdate');
+
 				GM_log("get_success() arguments=", arguments);
 
 //				GM_log("data=", data);
@@ -190,14 +233,15 @@ function doit()
 				if(!symbol)
 				 	return;
 			
-				symbol = symbol.replace(/\./, '-');// yahoo uses minus instead of dot
+				symbol = symbol.replace(/^\./, '^');	// yahoo uses caret instead of dot e.g. .DJI => ^DJI
+				symbol = symbol.replace(/\./, '-');		// yahoo uses minus instead of dot e.g. BRK.B => BRK-B
 
-				tdsymbol.append("&nbsp;<a href=http://finance.yahoo.com/q?s=" + symbol + ">(yahoo)</a>");
+				tdsymbol.append("&nbsp;<a href=//finance.yahoo.com/q?s=" + symbol + ">(yahoo)</a>");
 				
-				var imgurl = "http://ichart.finance.yahoo.com/c/bb/m/" + symbol;
+				var imgurl = "//ichart.finance.yahoo.com/c/bb/m/" + symbol;
 				tdlastprice.prepend("<img class='gpsmallcharts' src='" + imgurl + "'>");
 				
-				var imgurl2 = "http://ichart.yahoo.com/t?s=" + symbol;
+				var imgurl2 = "//ichart.yahoo.com/t?s=" + symbol;
 				tdchange.append("<img class='gpsmallcharts' src='" + imgurl2 + "' >");
 			 });
 		});
