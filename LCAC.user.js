@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           LCAC
 // @namespace      compressedtime.com
-// @version        3.253
+// @version        3.254
 // @run-at         document-end
 // @grant          GM_getValue
 // @grant          GM_setValue
@@ -21,6 +21,7 @@
 // @require        http://raw.github.com/ghubcompressedtime/js-deflate/patch-2/rawdeflate.js
 // @require        http://raw.github.com/ghubcompressedtime/js-deflate/patch-2/rawinflate.js
 // @require        https://raw.github.com/tomkp/dates.js/master/src/dates.js
+// @require        https://raw.githubusercontent.com/keithhackbarth/jquery-window-active/master/jquery.window-active.js
 
 // @include        https://www.lendingclub.com/account/loanDetail.action?*
 // @include        https://www.lendingclub.com/browse/loanDetail.action?*
@@ -94,7 +95,7 @@ compress stored data for ffn export
 
  */
 
-console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4716 $");	// automatically updated by svn
+console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 4739 $");	// automatically updated by svn
 
 //unsafeWindow.GM_setValue = GM_setValue;
 //unsafeWindow.GM_getValue = GM_getValue;
@@ -107,8 +108,8 @@ console.log("LCAC.user.js @version " + GM_info.script.version + " $Revision: 471
 var DEBUG = GM_getValue("DEBUG", false);
 //var DEBUG = true;	// for testing
 
-//if(DEBUG)
-//	unsafeWindow.jQuery = unsafeWindow.jQ = jQuery;
+if(DEBUG)
+	unsafeWindow.jQuery = unsafeWindow.jQ = jQuery;
 
 var GM_log;
 try
@@ -1931,22 +1932,29 @@ var DEBUG = debug(true, arguments);
 
 	vars.ficoTrend = ficoTrend;	// return it through the vars so we can compare it with most recent paymentDate
 	
+
+	var str = null;
+
 	//XXX add as messages not alerts
-	if(ficoTrend.duplicateDateDifferentValue)
+	if(ficoTrend.duplicateDateDifferentValue || ficoTrend.duplicateDates)
 	{
-		$(window).one('focus', function() 
-		{
+		var str = "Duplicate Dates in FICO trend";
+
+		if(ficoTrend.duplicateDateDifferentValue)
+			str = str + " DIFFERENT values first is " + ficoTrend.duplicateDateDifferentValue;
+
+		if(ficoTrend.duplicateDates)
+			str = str + " same values first is " + ficoTrend.duplicateDates;
+
+		if($.windowActive)
 			alert("LCAC: Duplicate Dates in FICO trend with DIFFERENT values, first is " + ficoTrend.duplicateDateDifferentValue);
-		});
+		else
+			$(window).one('focus', function() 	// focus doesn't trigger on initial page load if tab is already visible
+			{
+				alert("LCAC: Duplicate Dates in FICO trend with DIFFERENT values, first is " + ficoTrend.duplicateDateDifferentValue);
+			});
 	}
-	else if(ficoTrend.duplicateDates)
-	{
-		$(window).one('focus', function() 
-		{
-			alert("LCAC: Duplicate Dates in FICO trend with SAME values, first is " + ficoTrend.duplicateDates);
-		});
-	}
-	
+
 	var recentCreditScore = parseInt($("th:contains('Recent Credit Score') + td").text());
 	GM_log("recentCreditScore=", recentCreditScore);
 
@@ -9085,6 +9093,23 @@ function doitReady()
 			{
 				findHeadersCheckCells(notesTable, colorCells, true,
 					{addCommentColumn:true});
+
+				tableCanChange(notesTable, ".yui-dt-data",
+					function(notesTable)
+					{
+						var imgs = $('div img[title*="pending bankruptcy"]', notesTable);
+						GM_log("imgs=", imgs);
+						GM_log("imgs.length=", imgs.length);
+						imgs.after("B");
+						imgs.closest("div").css('white-space', 'nowrap');
+
+						var imgs = $('div img[title*="processing payment"]', notesTable);
+						GM_log("imgs=", imgs);
+						GM_log("imgs.length=", imgs.length);
+						imgs.after("P");
+						imgs.closest("div").css('white-space', 'nowrap');
+
+					});
 			});
 
 		if(AUTOSELLSELECT)
@@ -10501,6 +10526,8 @@ function doitReady()
 				});
 		}
 
+		$("input.submit-btn").css("width", "500px");
+
 		/* XXX sometimes submitCompleteLoanPurchase is actually "Browse Notes" page (e.g. if to-purchase notes were unavailable). How should we handle that case? Redirect to Browse Notes link? */
 
 		$('#content-wrap').width('auto');	// YYY on my system, there's a lot of ununsed whitespace on the left
@@ -11113,7 +11140,7 @@ function doitReady()
 		});
 
 		var totalDiv =
-				sprintf("<div class='lcac_summary'>(%d entries, %s total gain, %s total fee)</div>",
+				sprintf("<div class='lcac_summary' title='added by LCAC'>(%d entries, %s total gain, %s total fee*)</div>",
 					trs.length,
 					negative2negative("$%0.2f", totalGainTotal),
 					negative2negative("$%0.2f", totalFeeTotal)
@@ -11128,10 +11155,12 @@ function doitReady()
 	else if(href.match(/lenderActivity.action/)	// LC Account Activity date entry form
 		|| href.match(/getLenderActivity.action/))	// LC Account Activity page with data
 	{
-		var target = $("a.notesDownloadLink:last");
+//		var target = $("a.notesDownloadLink:last");
+		var target = $("div#submitAccountDatesContainer");
 		GM_log("target=", target);
 		
-		target.after("<button id='downloadActivity' style='clear:both; float:right'>Download 6 months*</button>");
+		target.after(
+			"<button id='downloadActivity' style='clear:both; float:right'>Download 6 months*</button>");
 
 		var button = $("button#downloadActivity");
 		GM_log("button=", button);
