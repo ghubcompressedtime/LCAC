@@ -1,6 +1,9 @@
 NOTE:
-NOTE: I no longer actively use LendingClub. If anyone wants to take over this project, please feel free.
+
+NOTE: I NO LONGER ACTIVELY USE LENDINGCLUB. IF ANYONE WANTS TO TAKE OVER THIS PROJECT, PLEASE FEEL FREE.
+
 NOTE:
+
 
 
 
