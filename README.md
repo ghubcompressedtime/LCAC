@@ -1,3 +1,11 @@
+NOTE:
+NOTE: I no longer actively use LendingClub. If anyone wants to take over this project, please feel free.
+NOTE:
+
+
+
+
+
 Note: I mostly use Chrome now. Let me know if something isn't working, especially if you're using Firefox.
 
 Step 1. Install Greasemonkey (for Firefox) https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/ or Tampermonkey (for Chrome) https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo
